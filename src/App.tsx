@@ -131,7 +131,7 @@ function App() {
           </div>
         )}
 
-        <div className="demo-note"><span />โหดนำเสนอ — รหัสผ่านทุกบัญชีคือ <strong>demo1234</strong></div>
+        <div className="demo-note"><span />โหมดนำเสนอ — รหัสผ่านทุกบัญชีคือ <strong>demo1234</strong></div>
       </section>
     </main>
   )
