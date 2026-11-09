@@ -1,23 +1,66 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import './App.css'
 import { Dashboard } from './Dashboard'
 
-/* =========================================
-   ส่วนที่ 1 — สมาชิกคนที่ 1 พรีเซนต์ระบบล็อกอิน
-   โครงสร้างเดิมยังอยู่ในไฟล์นี้ แต่เชื่อมโยงกับส่วนข้อมูลบัญชี demo ในเอกสารโครงสร้างพรีเซนต์
-   หน้าที่: ข้อมูลบัญชีทดลอง, การตรวจรหัสผ่าน และการบันทึกผู้ใช้ปัจจุบัน
-   ========================================= */
+// บัญชีสาธิต: ใช้ชื่อ role ภาษาไทยเป็นทั้งชื่อผู้ใช้และรหัสผ่าน
 const accounts = [
-  { id: 'employee', username: 'employee', password: 'demo1234', label: 'พนักงาน', name: 'นภาพร ทองดี', unit: 'แผนกเทคโนโลยี', canCreateRequest: true },
-  { id: 'department-head', username: 'department_head', password: 'demo1234', label: 'หัวหน้าแผนก', name: 'สมชาย ใจดี', unit: 'แผนกเทคโนโลยี', canCreateRequest: true },
-  { id: 'executive', username: 'executive', password: 'demo1234', label: 'ผู้บริหาร', name: 'ประเสริฐ รัตนชัย', unit: 'ผู้บริหารองค์กร', canCreateRequest: true },
-  { id: 'finance', username: 'finance', password: 'demo1234', label: 'ฝ่ายการเงิน', name: 'มนัสวิน ดีงาม', unit: 'ฝ่ายการเงิน', canCreateRequest: true },
-  { id: 'committee', username: 'committee', password: 'demo1234', label: 'คณะกรรมการตรวจสอบ', name: 'คณะกรรมการตรวจสอบภายใน', unit: 'คณะกรรมการอิสระ', canCreateRequest: false },
-  { id: 'admin', username: 'admin', password: 'demo1234', label: 'แอดมิน', name: 'ผู้ดูแลระบบ', unit: 'ฝ่ายระบบสารสนเทศ', canCreateRequest: false },
+  {
+    id: 'employee',
+    username: 'พนักงาน',
+    password: 'พนักงาน',
+    label: 'พนักงาน',
+    name: 'นภาพร ทองดี',
+    unit: 'แผนกเทคโนโลยี',
+    canCreateRequest: true,
+  },
+  {
+    id: 'department-head',
+    username: 'หัวหน้าแผนก',
+    password: 'หัวหน้าแผนก',
+    label: 'หัวหน้าแผนก',
+    name: 'สมชาย ใจดี',
+    unit: 'แผนกเทคโนโลยี',
+    canCreateRequest: true,
+  },
+  {
+    id: 'executive',
+    username: 'ผู้บริหาร',
+    password: 'ผู้บริหาร',
+    label: 'ผู้บริหาร',
+    name: 'ประเสริฐ รัตนชัย',
+    unit: 'ผู้บริหารองค์กร',
+    canCreateRequest: true,
+  },
+  {
+    id: 'finance',
+    username: 'ฝ่ายการเงิน',
+    password: 'ฝ่ายการเงิน',
+    label: 'ฝ่ายการเงิน',
+    name: 'มนัสวิน ดีงาม',
+    unit: 'ฝ่ายการเงิน',
+    canCreateRequest: true,
+  },
+  {
+    id: 'committee',
+    username: 'คณะกรรมการตรวจสอบ',
+    password: 'คณะกรรมการตรวจสอบ',
+    label: 'คณะกรรมการตรวจสอบ',
+    name: 'คณะกรรมการตรวจสอบภายใน',
+    unit: 'คณะกรรมการอิสระ',
+    canCreateRequest: false,
+  },
+  {
+    id: 'admin',
+    username: 'แอดมิน',
+    password: 'แอดมิน',
+    label: 'แอดมิน',
+    name: 'ผู้ดูแลระบบ',
+    unit: 'ฝ่ายระบบสารสนเทศ',
+    canCreateRequest: false,
+  },
 ] as const
 
 type DemoUser = (typeof accounts)[number]
-
 const sessionKey = 'budget-demo-user'
 
 function BudgetIcon() {
@@ -33,16 +76,18 @@ function App() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [showAccounts, setShowAccounts] = useState(false)
   const [demoUser, setDemoUser] = useState<DemoUser | null>(() => {
-    const saved = sessionStorage.getItem(sessionKey)
-    return accounts.find((account) => account.id === saved) ?? null
+    const savedUserId = sessionStorage.getItem(sessionKey)
+    return accounts.find((account) => account.id === savedUserId) ?? null
   })
 
-  // ตรวจสอบชื่อผู้ใช้และรหัสผ่านจากบัญชี demo ที่กำหนดไว้ด้านบน
-  const login = () => {
+  function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
     const account = accounts.find(
-      (item) => item.username.toLowerCase() === username.trim().toLowerCase() && item.password === password,
+      (item) =>
+        item.username.toLowerCase() === username.trim().toLowerCase() &&
+        item.password === password,
     )
 
     if (!account) {
@@ -52,49 +97,45 @@ function App() {
 
     sessionStorage.setItem(sessionKey, account.id)
     setDemoUser(account)
-    setShowAccounts(false)
     setError('')
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
   }
 
-  // ออกจากระบบและล้างข้อมูลผู้ใช้เพื่อป้องกันหน้าเดิมค้างจากบัญชีก่อนหน้า
-  const logout = () => {
+  function handleLogout() {
     sessionStorage.removeItem(sessionKey)
     setDemoUser(null)
     setUsername('')
     setPassword('')
-    setShowAccounts(false)
+    setError('')
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
   }
 
-  // กดบัญชีทดลองแล้วเติมชื่อผู้ใช้และรหัสผ่านลงในฟอร์มล็อกอินอัตโนมัติ
-  const fillAccount = (account: DemoUser) => {
-    setUsername(account.username)
-    setPassword(account.password)
-    setError('')
-  }
-
   if (demoUser) {
-    return <Dashboard key={demoUser.id} user={demoUser} logout={logout} />
+    return <Dashboard key={demoUser.id} user={demoUser} logout={handleLogout} />
   }
 
   return (
     <main className="login-page">
-      <section className={`login-card ${showAccounts ? 'with-account-list' : ''}`} aria-labelledby="login-title">
-        <div className="brand-mark"><BudgetIcon /></div>
+      <section className="login-card" aria-labelledby="login-title">
+        <div className="brand-mark">
+          <BudgetIcon />
+        </div>
         <div className="login-heading">
           <p className="eyebrow">Budget Management System</p>
           <h1 id="login-title">ระบบคำขอและอนุมัติงบประมาณ</h1>
           <p>กรุณาเข้าสู่ระบบเพื่อใช้งาน</p>
         </div>
 
-        <form className="login-form" onSubmit={(event) => { event.preventDefault(); login() }}>
+        <form className="login-form" onSubmit={handleLogin}>
           <label>
             <span>ชื่อผู้ใช้</span>
             <input
               type="text"
               value={username}
-              onChange={(event) => { setUsername(event.target.value); setError('') }}
+              onChange={(event) => {
+                setUsername(event.target.value)
+                setError('')
+              }}
               placeholder="กรอกชื่อผู้ใช้"
               autoComplete="username"
               autoFocus
@@ -105,31 +146,19 @@ function App() {
             <input
               type="password"
               value={password}
-              onChange={(event) => { setPassword(event.target.value); setError('') }}
+              onChange={(event) => {
+                setPassword(event.target.value)
+                setError('')
+              }}
               placeholder="กรอกรหัสผ่าน"
               autoComplete="current-password"
             />
           </label>
           {error && <p className="login-error" role="alert">{error}</p>}
-          <button type="submit" className="login-button login-submit">เข้าสู่ระบบ</button>
+          <button type="submit" className="login-button login-submit">
+            เข้าสู่ระบบ
+          </button>
         </form>
-
-        <button type="button" className="account-toggle" onClick={() => setShowAccounts((value) => !value)}>
-          {showAccounts ? 'ซ่อนบัญชีทดลอง' : 'ดูบัญชีทดลองทั้งหมด'}
-        </button>
-
-        {showAccounts && (
-          <div className="account-list" aria-label="บัญชีทดลอง">
-            {accounts.map((account) => (
-              <button type="button" className="account-row" key={account.id} onClick={() => fillAccount(account)}>
-                <span><strong>{account.label}</strong><small>{account.name}</small></span>
-                <code>{account.username}</code>
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="demo-note"><span />โหมดนำเสนอ — รหัสผ่านทุกบัญชีคือ <strong>demo1234</strong></div>
       </section>
     </main>
   )
