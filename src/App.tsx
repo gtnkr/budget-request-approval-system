@@ -10,8 +10,6 @@ import { Dashboard } from './Dashboard'
 const accounts = [
   { id: 'employee', username: 'employee', password: 'demo1234', label: 'พนักงาน', name: 'นภาพร ทองดี', unit: 'แผนกเทคโนโลยี', canCreateRequest: true },
   { id: 'department-head', username: 'department_head', password: 'demo1234', label: 'หัวหน้าแผนก', name: 'สมชาย ใจดี', unit: 'แผนกเทคโนโลยี', canCreateRequest: true },
-  { id: 'director', username: 'director', password: 'demo1234', label: 'ผู้อำนวยการฝ่าย', name: 'วิชิต มีสุข', unit: 'ฝ่ายบริหาร', canCreateRequest: true },
-  { id: 'dean', username: 'dean', password: 'demo1234', label: 'คณบดี', name: 'รัตนา วิริยะ', unit: 'คณะวิศวกรรมศาสตร์', canCreateRequest: true },
   { id: 'executive', username: 'executive', password: 'demo1234', label: 'ผู้บริหาร', name: 'ประเสริฐ รัตนชัย', unit: 'ผู้บริหารองค์กร', canCreateRequest: true },
   { id: 'finance', username: 'finance', password: 'demo1234', label: 'ฝ่ายการเงิน', name: 'มนัสวิน ดีงาม', unit: 'ฝ่ายการเงิน', canCreateRequest: true },
   { id: 'committee', username: 'committee', password: 'demo1234', label: 'คณะกรรมการตรวจสอบ', name: 'คณะกรรมการตรวจสอบภายใน', unit: 'คณะกรรมการอิสระ', canCreateRequest: false },
