@@ -4,19 +4,21 @@
   min-height: 100vh;
   place-items: center;
   box-sizing: border-box;
+  padding: 28px 0;
   background:
-    radial-gradient(circle at 15% 20%, rgba(52, 211, 153, 0.08), transparent 24rem),
-    radial-gradient(circle at 85% 75%, rgba(37, 99, 235, 0.07), transparent 26rem),
-    #f7f9fc;
+    radial-gradient(circle at 14% 18%, rgba(52, 211, 153, 0.11), transparent 25rem),
+    radial-gradient(circle at 86% 78%, rgba(37, 99, 235, 0.1), transparent 28rem),
+    linear-gradient(145deg, #f8fafc, #f1f5fb);
 }
 
 .login-card {
   width: min(460px, calc(100% - 32px));
   padding: 44px 44px 32px;
-  border: 1px solid #e6eaf0;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 28px 80px rgba(31, 51, 82, 0.12), 0 3px 12px rgba(31, 51, 82, 0.04);
+  backdrop-filter: blur(12px);
   text-align: center;
   box-sizing: border-box;
 }
@@ -29,8 +31,8 @@
   place-items: center;
   border-radius: 16px;
   color: #fff;
-  background: #245cbe;
-  box-shadow: 0 10px 24px rgba(36, 92, 190, 0.22);
+  background: linear-gradient(145deg, #3474d4, #1d4fa4);
+  box-shadow: 0 12px 26px rgba(36, 92, 190, 0.28);
 }
 
 .brand-mark svg {
@@ -102,7 +104,7 @@
 
 .login-form input:focus {
   border-color: #245cbe;
-  box-shadow: 0 0 0 3px rgba(36, 92, 190, 0.1);
+  box-shadow: 0 0 0 4px rgba(36, 92, 190, 0.11);
 }
 
 .login-error {
@@ -122,7 +124,9 @@
 }
 
 .login-button:hover {
-  background: #1d4fa4;
+  background: #19478f;
+  box-shadow: 0 8px 18px rgba(36, 92, 190, 0.2);
+  transform: translateY(-1px);
 }
 
 .login-submit {
@@ -132,6 +136,7 @@
   border-radius: 9px;
   font-weight: 700;
   cursor: pointer;
+  transition: background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
 .login-submit:focus-visible,
