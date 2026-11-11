@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import './App.css'
 import { Dashboard } from './Dashboard'
+import type { DemoUser } from './types'
 
 // บัญชีสาธิต: ใช้ชื่อ role ภาษาไทยเป็นทั้งชื่อผู้ใช้และรหัสผ่าน
-const accounts = [
+const accounts: DemoUser[] = [
   {
     id: 'employee',
     username: 'พนักงาน',
@@ -58,9 +59,7 @@ const accounts = [
     unit: 'ฝ่ายระบบสารสนเทศ',
     canCreateRequest: false,
   },
-] as const
-
-type DemoUser = (typeof accounts)[number]
+]
 const sessionKey = 'budget-demo-user'
 
 function BudgetIcon() {

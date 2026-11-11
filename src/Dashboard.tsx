@@ -1,15 +1,27 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import {
+  Bell,
+  Building2,
+  ChartNoAxesCombined,
+  ClipboardCheck,
+  ClipboardList,
+  FilePlus,
+  Files,
+  HandCoins,
+  History,
+  LayoutDashboard,
+  ShieldCheck,
+  Users,
+  Wallet,
+} from 'lucide-react'
+import { BuddhistDatePicker } from './BuddhistDatePicker'
+import { FinanceReview, RequestDetails } from './finance/FinanceReview'
+import { StatusBadge } from './StatusBadge'
+import { DataTable } from './DataTable'
+import { FINANCE_REVIEW_MENU } from './types'
+import type { ApprovalDetails, DemoUser, RequestRecord } from './types'
+import { currentLocalISODate, money } from './utils'
 import './Dashboard.css'
-
-export type DemoUser = {
-  id: string
-  username: string
-  password: string
-  label: string
-  name: string
-  unit: string
-  canCreateRequest?: boolean
-}
 
 /* ข้อมูลจำลองสำหรับงานนำเสนอ แยกออกจากคำขอที่ผู้ใช้สร้างใน sessionStorage */
 const requests = [
@@ -150,151 +162,8 @@ const completeSampleRequest = (request: any, index: number) => {
 
 const sampleRequests = requests.map(completeSampleRequest)
 
-const money = (amount: number) => new Intl.NumberFormat('th-TH').format(amount) + ' บาท'
-const fileSize = (size: number) => size < 1024 * 1024
-  ? `${Math.max(1, Math.round(size / 1024))} KB`
-  : `${(size / (1024 * 1024)).toFixed(1)} MB`
 const currentThaiDate = () => new Date().toLocaleDateString('th-TH')
 const currentThaiDateTime = () => new Date().toLocaleString('th-TH')
-const currentISODate = () => new Date().toISOString().slice(0, 10)
-
-function RequestDetails({ request, onClose, decisionRole, onDecision, canSubmitSettlement, onSubmitSettlement }: {
-  request: any
-  onClose: () => void
-  decisionRole?: string
-  onDecision?: (result: string, details: { comment: string; paymentReference: string; paymentDate: string; settlementReference: string; settlementDate: string }) => void
-  canSubmitSettlement?: boolean
-  onSubmitSettlement?: (reference: string, date: string) => void
-}) {
-  const [comment, setComment] = useState('')
-  const [decisionError, setDecisionError] = useState('')
-  const [paymentReference, setPaymentReference] = useState('')
-  const [paymentDate, setPaymentDate] = useState(currentISODate())
-  const [settlementReference, setSettlementReference] = useState('')
-  const [settlementDate, setSettlementDate] = useState(currentISODate())
-  const [submittedReference, setSubmittedReference] = useState(request.settlementReference ?? '')
-  const [submittedDate, setSubmittedDate] = useState(request.submittedSettlementDate ?? currentISODate())
-  const history = request.approvalHistory ?? []
-  const attachments = request.attachments ?? []
-  const expenseItems = request.expenseItems ?? []
-  const recordingPayment = decisionRole === 'finance' && request.status === 'รอฝ่ายการเงิน'
-  const clearingAdvance = decisionRole === 'finance' && request.status === 'รอตรวจเคลียร์เงินยืม'
-  const decide = (result: string) => {
-    if (!onDecision) return
-    if (['ส่งแก้ไข', 'ไม่อนุมัติ'].includes(result) && !comment.trim()) {
-      setDecisionError('กรุณาระบุเหตุผลสำหรับการส่งแก้ไขหรือไม่อนุมัติ')
-      return
-    }
-    if (recordingPayment && (!paymentReference.trim() || !paymentDate)) {
-      setDecisionError('กรุณาระบุเลขอ้างอิงการจ่ายและวันที่จ่าย')
-      return
-    }
-    if (clearingAdvance && (!settlementReference.trim() || !settlementDate)) {
-      setDecisionError('กรุณาระบุเลขที่หลักฐานเคลียร์เงินยืมและวันที่เคลียร์')
-      return
-    }
-    setDecisionError('')
-    onDecision(result, { comment: comment.trim(), paymentReference: paymentReference.trim(), paymentDate, settlementReference: settlementReference.trim(), settlementDate })
-  }
-
-  return (
-    <div className="request-detail-backdrop" role="presentation" onClick={onClose}>
-      <article className="request-detail-modal" role="dialog" aria-modal="true" aria-labelledby="request-detail-title" onClick={(event) => event.stopPropagation()}>
-        <div className="request-detail-header">
-          <div><span>รายละเอียดคำขอ</span><h2 id="request-detail-title">{request.title}</h2><small>{request.code} • {request.date}</small></div>
-          <button type="button" aria-label="ปิดรายละเอียด" onClick={onClose}>×</button>
-        </div>
-        <div className="request-detail-body">
-          <div className="request-detail-summary">
-            <div><span>ผู้ขอ</span><strong>{request.requester} ({request.requesterRole})</strong></div>
-            <div><span>หน่วยงาน</span><strong>{request.unit}</strong></div>
-            <div><span>ประเภทงบ</span><strong>{request.category}</strong></div>
-            <div><span>วงเงิน</span><strong>{money(request.amount)}</strong></div>
-          </div>
-          <section className="detail-field-grid">
-            <div><span>รูปแบบคำขอ</span><strong>{request.requestType} • {request.requestTiming}</strong></div>
-            <div><span>ปีงบประมาณ</span><strong>{request.budgetYear}</strong></div>
-            <div><span>วันที่ยื่นคำขอ</span><strong>{request.requestDate}</strong></div>
-            <div><span>วันที่ต้องการใช้</span><strong>{request.neededDate}</strong></div>
-            <div><span>ชื่อโครงการ</span><strong>{request.projectName || 'ไม่ใช่คำขอโครงการ'}</strong></div>
-            <div><span>สถานะปัจจุบัน</span><strong>{request.status}</strong></div>
-          </section>
-          <section><span>เหตุผลความจำเป็น</span><p>{request.description}</p></section>
-          {request.financeReferenceNo && <section className="detail-field-grid"><div><span>เลขอ้างอิงการเงิน</span><strong>{request.financeReferenceNo}</strong></div><div><span>กรอบการจ่าย</span><strong>{request.financePurpose}</strong></div></section>}
-          {(request.paymentReference || request.settlementReference || request.settlementCloseReference) && <section className="detail-field-grid">
-            {request.paymentReference && <div><span>เลขอ้างอิงการจ่าย</span><strong>{request.paymentReference} • {request.paymentDate}</strong></div>}
-            {request.settlementReference && <div><span>หลักฐานที่ผู้ขอส่ง</span><strong>{request.settlementReference} • {request.submittedSettlementDate}</strong></div>}
-            {request.settlementCloseReference && <div><span>เลขอ้างอิงตรวจปิดเงินยืม</span><strong>{request.settlementCloseReference} • {request.actualSettlementDate}</strong></div>}
-          </section>}
-          <section>
-            <span>รายการค่าใช้จ่าย</span>
-            <div className="detail-expense-list">{expenseItems.map((item: any, index: number) => (
-              <div key={`${item.name}-${index}`}><span>{index + 1}</span><div><strong>{item.name}</strong><small>{item.detail}</small></div><b>{Number(String(item.amount).replace(/,/g, '') || 0).toLocaleString('th-TH')} บาท</b></div>
-            ))}</div>
-          </section>
-          <section className="detail-field-grid">
-            <div><span>ผู้รับเงิน</span><strong>{request.recipientName}</strong></div>
-            <div><span>เลขประจำตัวผู้เสียภาษี</span><strong>{request.taxId}</strong></div>
-            <div><span>ธนาคาร</span><strong>{request.bankName}</strong></div>
-            <div><span>เลขที่บัญชี</span><strong>{request.accountNumber}</strong></div>
-            <div><span>ชื่อบัญชี</span><strong>{request.accountName}</strong></div>
-            {request.settlementDate && <div><span>{request.requestType === 'เงินสดยืม' ? 'กำหนดเคลียร์เงินยืม' : 'วันที่ชำระโดยประมาณ'}</span><strong>{request.settlementDate}</strong></div>}
-          </section>
-          <section>
-            <span>เอกสารประกอบ</span>
-            <div className="detail-attachments">{attachments.map((item: any, index: number) => (
-              <div key={`${item.name}-${index}`}><strong>{item.type}</strong><small>{item.name} • {fileSize(item.size ?? 0)}</small></div>
-            ))}</div>
-          </section>
-          <section>
-            <span>ประวัติการพิจารณา</span>
-            <div className="detail-history">{history.length > 0 ? history.map((item: any, index: number) => (
-              <div key={`${item.step}-${index}`}><span>{index + 1}</span><div><strong>{item.label ?? item.step} — {item.actor}</strong><small>{item.result} • {item.date}{item.comment ? ` • หมายเหตุ: ${item.comment}` : ''}</small></div></div>
-            )) : <p>ยังไม่มีประวัติการอนุมัติ</p>}</div>
-          </section>
-          <p className="demo-data-note">ข้อมูลผู้รับเงินและเอกสารในรายการนี้เป็นข้อมูลสมมติสำหรับทดสอบการแสดงผล ไม่ใช่ข้อมูลการเงินจริง</p>
-        </div>
-        {canSubmitSettlement && <div className="request-decision-panel">
-          <div className="approval-scope"><strong>รอส่งหลักฐานเคลียร์เงินยืม</strong><span>กรอกเลขที่ใบสำคัญ/หลักฐานการคืนเงิน และวันที่ส่งให้ฝ่ายการเงินตรวจสอบ</span></div>
-          <div className="detail-field-grid">
-            <label><span>เลขที่ใบสำคัญ/หลักฐาน <b>*</b></span><input value={submittedReference} onChange={(event) => setSubmittedReference(event.target.value)} placeholder="เช่น SET-2569-001" /></label>
-            <label><span>วันที่ส่งหลักฐาน <b>*</b></span><input type="date" value={submittedDate} onChange={(event) => setSubmittedDate(event.target.value)} /></label>
-          </div>
-          {decisionError && <p className="decision-error" role="alert">{decisionError}</p>}
-          <div className="request-detail-actions"><button type="button" className="detail-approve" onClick={() => {
-            if (!submittedReference.trim() || !submittedDate) {
-              setDecisionError('กรุณาระบุเลขที่หลักฐานและวันที่ส่ง')
-              return
-            }
-            onSubmitSettlement?.(submittedReference.trim(), submittedDate)
-          }}>ส่งหลักฐานให้ฝ่ายการเงิน</button></div>
-        </div>}
-        {onDecision && <div className="request-decision-panel">
-          {(recordingPayment || clearingAdvance) && <div className="detail-field-grid">
-            {recordingPayment ? <>
-              <label><span>เลขอ้างอิงการจ่ายเงิน <b>*</b></span><input value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} placeholder="เช่น PAY-2569-001" /></label>
-              <label><span>วันที่จ่ายเงิน <b>*</b></span><input type="date" value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} /></label>
-            </> : <>
-              <label><span>เลขที่ใบสำคัญ/หลักฐานเคลียร์เงินยืม <b>*</b></span><input value={settlementReference} onChange={(event) => setSettlementReference(event.target.value)} placeholder="เช่น SET-2569-001" /></label>
-              <label><span>วันที่เคลียร์เงินยืม <b>*</b></span><input type="date" value={settlementDate} onChange={(event) => setSettlementDate(event.target.value)} /></label>
-            </>}
-          </div>}
-          <label className="decision-comment"><span>หมายเหตุ / เหตุผล{!recordingPayment && !clearingAdvance && ' (ต้องระบุเมื่อส่งแก้ไขหรือไม่อนุมัติ)'}</span><textarea rows={3} value={comment} onChange={(event) => { setComment(event.target.value); setDecisionError('') }} placeholder="ระบุข้อพิจารณา หรือเอกสารที่ต้องแก้ไข" /></label>
-          {decisionError && <p className="decision-error" role="alert">{decisionError}</p>}
-          <div className="request-detail-actions">
-            {clearingAdvance ? <button type="button" className="detail-approve" onClick={() => decide('ปิดเงินยืม')}>ยืนยันปิดรายการเงินยืม</button>
-              : recordingPayment ? <button type="button" className="detail-approve" onClick={() => decide('อนุมัติแล้ว')}>บันทึกการจ่ายเงิน</button>
-                : <>
-                  <button type="button" className="detail-reject" onClick={() => decide('ไม่อนุมัติ')}>ไม่อนุมัติ</button>
-                  <button type="button" className="detail-revise" onClick={() => decide('ส่งแก้ไข')}>ส่งแก้ไข</button>
-                  <button type="button" className="detail-approve" onClick={() => decide('อนุมัติแล้ว')}>อนุมัติคำขอ</button>
-                </>}
-          </div>
-        </div>}
-      </article>
-    </div>
-  )
-}
 
 const demoAccounts = [
   { role: 'พนักงาน', login: 'พนักงาน', name: 'นภาพร ทองดี', unit: 'แผนกเทคโนโลยี', permissions: 'สร้างและติดตามคำขอของตนเอง' },
@@ -339,14 +208,15 @@ const getApprovalSteps = (amount: number, requesterId?: string) => {
 }
 
 export function Dashboard({ user, logout }: { user: DemoUser; logout: () => void }) {
-  const [active, setActive] = useState(() => user.id === 'admin' ? 'ผู้ใช้งาน' : user.id === 'committee' ? 'อนุมัติตรวจสอบ' : 'สร้างคำขอใหม่')
+  const attachmentInputRef = useRef<HTMLInputElement>(null)
+  const [active, setActive] = useState(() => user.id === 'admin' ? 'ผู้ใช้งาน' : user.id === 'committee' ? 'อนุมัติตรวจสอบ' : user.id === 'finance' ? FINANCE_REVIEW_MENU[0] : 'สร้างคำขอใหม่')
   const [editingRequestCode, setEditingRequestCode] = useState<string | null>(null)
+  const [formStep, setFormStep] = useState(0)
   const [title, setTitle] = useState('')
-  const [amount, setAmount] = useState('')
   const [category, setCategory] = useState('จัดซื้อวัสดุและครุภัณฑ์')
   const [requestType, setRequestType] = useState<'เงินสดยืม' | 'เบิกจ่าย'>('เบิกจ่าย')
   const [requestTiming, setRequestTiming] = useState<'เบิกล่วงหน้า' | 'เบิกย้อนหลัง'>('เบิกล่วงหน้า')
-  const [requestDate, setRequestDate] = useState('2026-10-29')
+  const [requestDate, setRequestDate] = useState(currentLocalISODate)
   const [neededDate, setNeededDate] = useState('')
   const [budgetYear, setBudgetYear] = useState('2569')
   const [projectName, setProjectName] = useState('')
@@ -416,7 +286,7 @@ export function Dashboard({ user, logout }: { user: DemoUser; logout: () => void
   const approvalMenuItem = user.id === 'department-head'
     ? 'รออนุมัติแผนก'
     : finance
-      ? 'ตรวจสอบการเงิน'
+      ? FINANCE_REVIEW_MENU[0]
       : executive
         ? 'อนุมัติองค์กร'
         : user.id === 'committee'
@@ -427,11 +297,13 @@ export function Dashboard({ user, logout }: { user: DemoUser; logout: () => void
     ? ['ผู้ใช้งาน', 'บทบาทและสิทธิ์', 'หน่วยงาน', 'วงเงินอนุมัติ', 'คำขอทั้งหมด', 'ประวัติระบบ']
     : employee
       ? ['สร้างคำขอใหม่', 'คำขอของฉัน']
+      : finance
+        ? ['ภาพรวม', 'สร้างคำขอใหม่', 'คำขอของฉัน', ...FINANCE_REVIEW_MENU]
       : canCreateRequest
-        ? ['สร้างคำขอใหม่', 'คำขอของฉัน', approvalMenuItem, ...(finance ? ['ติดตามเงินยืม'] : [])]
+        ? ['สร้างคำขอใหม่', 'คำขอของฉัน', approvalMenuItem]
         : approvalMenuItem ? [approvalMenuItem] : []
 
-  const allRequests = [
+  const allRequests: RequestRecord[] = [
     ...createdRequests,
     ...sampleRequests.filter((request) => !createdRequests.some((createdRequest) => createdRequest.code === request.code)),
   ].map((request) => ({
@@ -447,7 +319,8 @@ export function Dashboard({ user, logout }: { user: DemoUser; logout: () => void
       : allRequests
 
   const expenseTotal = expenseItems.reduce((total, item) => total + (Number(item.amount.replace(/,/g, '')) || 0), 0)
-  const numericAmount = Number(amount.replace(/,/g, '')) || 0
+  const amount = expenseTotal > 0 ? expenseTotal.toLocaleString('en-US') : ''
+  const numericAmount = expenseTotal
   const roleBudget = roleBudgets[user.id] ?? { total: 0, used: 0, scope: 'ไม่มีงบที่กำหนด' }
   const budgetTotalNumber = roleBudget.total
   const budgetUsedNumber = roleBudget.used
@@ -481,6 +354,62 @@ export function Dashboard({ user, logout }: { user: DemoUser; logout: () => void
     ? 'ควรแนบเอกสารก่อนดำเนินการเพื่อใช้เปรียบเทียบและอนุมัติวงเงิน'
     : 'ต้องแนบหลักฐานหลังดำเนินการอย่างน้อยใบเสร็จหรือหลักฐานการโอน/ชำระเงิน'
   const approvalRoute = getApprovalSteps(numericAmount, user.id).map((step) => step.label)
+  const validateRequestStep = (step: number) => {
+    if (step === 0) {
+      if (!title.trim() || !description.trim()) {
+        return 'กรุณากรอกชื่อรายการและวัตถุประสงค์/เหตุผลความจำเป็น'
+      }
+      if (finance && (!financeReferenceNo.trim() || !financePurpose.trim())) {
+        return 'กรณีฝ่ายการเงินต้องระบุเลขที่รายการการเงินและกรอบการจ่ายเงินให้ครบถ้วน'
+      }
+    }
+
+    if (step === 1) {
+      const invalidExpense = expenseItems.some((item) =>
+        !item.name.trim() ||
+        !item.detail.trim() ||
+        !(Number(item.amount.replace(/,/g, '')) > 0),
+      )
+      if (invalidExpense || numericAmount <= 0) {
+        return 'กรุณากรอกรายการค่าใช้จ่าย รายละเอียด และจำนวนเงินให้ครบถ้วน'
+      }
+      if (!recipientName.trim() || !taxId.trim() || !bankName.trim() || !accountNumber.trim() || !accountName.trim()) {
+        return 'กรุณากรอกข้อมูลผู้รับเงินและข้อมูลบัญชีธนาคารให้ครบถ้วน'
+      }
+      if (!/^\d{13}$/.test(taxId)) {
+        return 'เลขประจำตัวผู้เสียภาษีหรือบัตรประชาชนต้องเป็นตัวเลข 13 หลัก'
+      }
+      if (requestType === 'เงินสดยืม' && !settlementDate) {
+        return 'กรุณากำหนดวันที่ต้องเคลียร์เงินสดยืม'
+      }
+      if (finance && requestType !== 'เบิกจ่าย') {
+        return 'ฝ่ายการเงินต้องสร้างคำขอในรูปแบบขอเบิกจ่ายงบประมาณเท่านั้น'
+      }
+      if (numericAmount > budgetRemaining) {
+        return `วงเงินที่ขอเกินงบคงเหลือ ${budgetRemaining.toLocaleString('th-TH')} บาท`
+      }
+    }
+
+    if (step === 2 && requestTiming === 'เบิกย้อนหลัง') {
+      const hasRetrospectiveProof = attachments.some((item) =>
+        ['ใบเสร็จรับเงิน', 'หลักฐานการโอนหรือชำระเงิน'].includes(item.type),
+      )
+      if (!hasRetrospectiveProof) {
+        return 'กรุณาแนบใบเสร็จรับเงินหรือหลักฐานการโอนเพื่อการเบิกย้อนหลัง'
+      }
+    }
+
+    return ''
+  }
+  const goToNextFormStep = () => {
+    const validationMessage = validateRequestStep(formStep)
+    if (validationMessage) {
+      setMessage(validationMessage)
+      return
+    }
+    setMessage('')
+    setFormStep((step) => Math.min(step + 1, 2))
+  }
 
   const addAttachment = () => {
     if (!selectedAttachment) {
@@ -501,10 +430,9 @@ export function Dashboard({ user, logout }: { user: DemoUser; logout: () => void
     setTitle(item.title === 'ฉบับร่างไม่มีชื่อ' ? '' : item.title)
     setCategory(item.category ?? 'จัดซื้อวัสดุและครุภัณฑ์')
     setDescription(item.description ?? '')
-    setAmount(Number(item.amount) > 0 ? Number(item.amount).toLocaleString('en-US') : '')
     setRequestType(item.requestType === 'เงินสดยืม' ? 'เงินสดยืม' : 'เบิกจ่าย')
     setRequestTiming(item.requestTiming === 'เบิกย้อนหลัง' ? 'เบิกย้อนหลัง' : 'เบิกล่วงหน้า')
-    setRequestDate(item.requestDate ?? '2026-10-29')
+    setRequestDate(item.requestDate ?? currentLocalISODate())
     setNeededDate(item.neededDate ?? '')
     setBudgetYear(item.budgetYear ?? '2569')
     setProjectName(item.projectName ?? '')
@@ -519,6 +447,7 @@ export function Dashboard({ user, logout }: { user: DemoUser; logout: () => void
     setExpenseItems(item.expenseItems?.length ? item.expenseItems : [{ name: '', detail: '', amount: '' }])
     setAttachments((item.attachments ?? []).map((attachment: any) => ({ ...attachment, size: attachment.size ?? 0 })))
     setDocumentType(item.attachments?.[0]?.type ?? 'ใบเสนอราคา')
+    setFormStep(0)
     setActive('สร้างคำขอใหม่')
     setMessage(`กำลังแก้ไขคำขอ ${item.code}`)
   }
@@ -677,10 +606,10 @@ export function Dashboard({ user, logout }: { user: DemoUser; logout: () => void
     setMessage(submit ? `ส่งคำขอ ${code} เรียบร้อยแล้ว` : `บันทึกฉบับร่าง ${code} เรียบร้อยแล้ว`)
     recordAudit(editingRequestCode ? 'ส่งคำขอแก้ไข' : submit ? 'ส่งคำขออนุมัติ' : 'บันทึกฉบับร่าง', code)
     setEditingRequestCode(null)
+    setFormStep(0)
     setTitle('')
     setCategory('จัดซื้อวัสดุและครุภัณฑ์')
     setDescription('')
-    setAmount('')
     setFinanceReferenceNo('')
     setFinancePurpose('')
     setRecipientName('')
@@ -699,7 +628,7 @@ export function Dashboard({ user, logout }: { user: DemoUser; logout: () => void
   }
 
   // ส่วนอนุมัติและการส่งต่อคำขอตามบทบาทผู้ใช้งาน
-  const isApprovalPage = active.includes('อนุมัติ') || active.includes('รออนุมัติ') || active === 'ตรวจสอบการเงิน' || active === 'ติดตามเงินยืม'
+  const isApprovalPage = active.includes('อนุมัติ') || active.includes('รออนุมัติ') || active === FINANCE_REVIEW_MENU[0] || active === FINANCE_REVIEW_MENU[1]
   const approvalScopeDescription = admin
     ? 'แอดมินจัดการบัญชีและสิทธิ์เท่านั้น ไม่มีสิทธิ์อนุมัติคำขอ'
     : employee
@@ -719,7 +648,9 @@ export function Dashboard({ user, logout }: { user: DemoUser; logout: () => void
       if (['อนุมัติแล้ว', 'ชำระเงินแล้ว', 'ปิดรายการแล้ว', 'ไม่อนุมัติ', 'ส่งแก้ไข', 'ฉบับร่าง'].includes(currentStatus)) return false
       if (admin || employee) return false
       if (item.requesterId === user.id) return false
-      if (active === 'ติดตามเงินยืม') return finance && currentStatus === 'รอตรวจเคลียร์เงินยืม'
+      if (active === FINANCE_REVIEW_MENU[1]) {
+        return finance && item.requestType === 'เงินสดยืม' && ['รอเคลียร์เงินยืม', 'รอตรวจเคลียร์เงินยืม'].includes(currentStatus)
+      }
       if (finance) return currentStatus === 'รอฝ่ายการเงิน'
       if (user.id === 'committee') return currentStatus === 'รอคณะกรรมการตรวจสอบ'
       if (user.id === 'department-head') return currentStatus === 'รอหัวหน้าแผนก' && item.unit === user.unit
@@ -729,15 +660,13 @@ export function Dashboard({ user, logout }: { user: DemoUser; logout: () => void
   const pendingRequestAmount = approvalCandidates.reduce((total, item) => total + Number(item.amount || 0), 0)
   const stats = admin
     ? [['ผู้ใช้งาน', '6 บัญชี', 'บัญชีสาธิต'], ['บทบาท', '6 บทบาท', 'กำหนดสิทธิ์'], ['คำขอทั้งหมด', `${allRequests.length} รายการ`, 'รวมข้อมูลสาธิต'], ['ประวัติระบบ', `${auditEntries.length} รายการ`, 'กิจกรรมล่าสุด']]
-    : finance
-      ? [['รอตรวจสอบการเงิน', `${approvalCandidates.filter((item) => item.status === 'รอฝ่ายการเงิน').length} รายการ`, 'ทุกหน่วยงาน'], ['วงเงินรอตรวจ', money(pendingRequestAmount), 'รวมเฉพาะคิวการเงิน'], ['รอตรวจหลักฐานเงินยืม', `${allRequests.filter((item) => item.status === 'รอตรวจเคลียร์เงินยืม').length} รายการ`, 'ติดตามหลักฐาน'], ['คำขอของฉันเสร็จแล้ว', `${myRequests.filter((item) => ['อนุมัติแล้ว', 'ชำระเงินแล้ว', 'ปิดรายการแล้ว'].includes(item.status)).length} รายการ`, 'ผู้ขอฝ่ายการเงิน']]
-      : executive
+    : executive
       ? [['คำขอรออนุมัติ', `${approvalCandidates.length} รายการ`, 'คิวผู้บริหาร'], ['วงเงินรออนุมัติ', money(pendingRequestAmount), 'รวมคำขอในคิว'], ['คำขอของฉันเสร็จแล้ว', `${myRequests.filter((item) => ['อนุมัติแล้ว', 'ชำระเงินแล้ว', 'ปิดรายการแล้ว'].includes(item.status)).length} รายการ`, 'ผู้ขอบทบาทผู้บริหาร'], ['งบทั้งองค์กร', money(roleBudget.total), 'ปีงบประมาณนี้']]
         : user.id === 'department-head'
         ? [['รออนุมัติแผนก', `${approvalCandidates.length} รายการ`, user.unit], ['คำขอของฉัน', `${myRequests.length} รายการ`, 'สร้างโดยบัญชีนี้'], ['ส่งแก้ไข', `${myRequests.filter((item) => item.status === 'ส่งแก้ไข').length} รายการ`, 'คำขอของหัวหน้าแผนก'], ['งบแผนกคงเหลือ', money(Math.max(0, roleBudget.total - roleBudget.used - committedAmount)), 'โดยประมาณ']]
           : [['คำขอของฉัน', `${myRequests.length} รายการ`, 'รวมทุกสถานะ'], ['รอดำเนินการ', `${myRequests.filter((item) => !['อนุมัติแล้ว', 'ชำระเงินแล้ว', 'ปิดรายการแล้ว', 'ไม่อนุมัติ'].includes(item.status)).length} รายการ`, 'กำลังดำเนินการ'], ['ส่งแก้ไข', `${myRequests.filter((item) => item.status === 'ส่งแก้ไข').length} รายการ`, 'ต้องตรวจสอบ'], ['งบคงเหลือ', money(Math.max(0, roleBudget.total - roleBudget.used - committedAmount)), 'โดยประมาณ']]
 
-  const processApproval = (code: string, result: string, details: { comment?: string; paymentReference?: string; paymentDate?: string; settlementReference?: string; settlementDate?: string } = {}) => {
+  const processApproval = (code: string, result: string, details: ApprovalDetails = { comment: '', paymentReference: '', paymentDate: '', settlementReference: '', settlementDate: '' }) => {
     const sourceItem: any = allRequests.find((item) => item.code === code)
     if (!sourceItem || !approvalCandidates.some((item) => item.code === code)) {
       setMessage('ไม่มีสิทธิ์ดำเนินการกับคำขอนี้ หรือคำขอถูกดำเนินการไปแล้ว')
@@ -752,6 +681,7 @@ export function Dashboard({ user, logout }: { user: DemoUser; logout: () => void
     }
     let nextStatus = result
     let historyResult = result
+    const historyDate = result === 'ส่งแก้ไข' ? currentThaiDateTime() : currentThaiDate()
 
     if (result === 'ปิดเงินยืม') {
       nextStatus = 'ปิดรายการแล้ว'
@@ -796,7 +726,7 @@ export function Dashboard({ user, logout }: { user: DemoUser; logout: () => void
         label: currentStep?.label ?? currentStatus,
         actor: user.name,
         status: nextStatus,
-        date: currentThaiDate(),
+        date: historyDate,
         result: historyResult,
         comment: details.comment ?? '',
         ...(details.paymentReference ? { paymentReference: details.paymentReference, paymentDate: details.paymentDate } : {}),
@@ -817,7 +747,7 @@ export function Dashboard({ user, logout }: { user: DemoUser; logout: () => void
       label: currentStep?.label ?? currentStatus,
       actor: user.name,
       status: nextStatus,
-      date: currentThaiDate(),
+      date: historyDate,
       result: historyResult,
       comment: details.comment ?? '',
       ...(details.paymentReference ? { paymentReference: details.paymentReference, paymentDate: details.paymentDate } : {}),
@@ -885,7 +815,37 @@ export function Dashboard({ user, logout }: { user: DemoUser; logout: () => void
       <div className="sidebar-brand"><div className="sidebar-logo">▦</div><div><strong>Budget System</strong><small>ระบบอนุมัติงบประมาณ</small></div></div>
       <nav className="side-menu" aria-label="เมนูหลัก">
         <p className="menu-label">เมนูหลัก</p>
-        {menu.map((item) => <button key={item} className={active === item ? 'active' : ''} onClick={() => setActive(item)}><span>{item.includes('คำขอ') || item.includes('อนุมัติ') ? '▤' : item.includes('รายงาน') ? '◫' : '⚙'}</span>{item}</button>)}
+        {menu.map((item) => {
+          const pendingMenuCount = item === FINANCE_REVIEW_MENU[0]
+            ? allRequests.filter((request) => request.status === 'รอฝ่ายการเงิน' && request.requesterId !== user.id).length
+            : item === FINANCE_REVIEW_MENU[1]
+              ? allRequests.filter((request) => request.requestType === 'เงินสดยืม' && ['รอเคลียร์เงินยืม', 'รอตรวจเคลียร์เงินยืม'].includes(request.status) && request.requesterId !== user.id).length
+              : 0
+          const MenuIcon = item === FINANCE_REVIEW_MENU[0]
+            ? ClipboardCheck
+            : item === FINANCE_REVIEW_MENU[1]
+              ? HandCoins
+              : item === 'ภาพรวม'
+                ? LayoutDashboard
+                : item === 'สร้างคำขอใหม่'
+                  ? FilePlus
+                  : item === 'คำขอของฉัน' || item === 'คำขอทั้งหมด' || item === 'รายการคำขอ'
+                    ? Files
+                    : item.includes('อนุมัติ') || item.includes('รออนุมัติ')
+                      ? ShieldCheck
+                      : item === 'ผู้ใช้งาน'
+                        ? Users
+                        : item === 'หน่วยงาน'
+                          ? Building2
+                          : item.includes('วงเงิน') || item.includes('งบประมาณ')
+                            ? Wallet
+                            : item.includes('รายงาน')
+                              ? ChartNoAxesCombined
+                              : item === 'ประวัติระบบ'
+                                ? History
+                                : ClipboardList
+          return <button key={item} className={active === item ? 'active' : ''} onClick={() => { if (item === 'สร้างคำขอใหม่') setFormStep(0); setActive(item) }}><span className="menu-icon"><MenuIcon aria-hidden="true" size={18} strokeWidth={1.8} /></span>{item}{pendingMenuCount > 0 && <small className="menu-pending-count">{pendingMenuCount}</small>}</button>
+        })}
       </nav>
       <button className="sidebar-logout" onClick={logout}>↪ ออกจากระบบ</button>
     </aside>
@@ -893,34 +853,43 @@ export function Dashboard({ user, logout }: { user: DemoUser; logout: () => void
     <section className="dashboard-main">
       <header className="dashboard-header">
         <div><p className="breadcrumb">หน้าหลัก / {active}</p><h1>{active}</h1></div>
-        <div className="header-actions"><button className="bell-button" aria-label="แจ้งเตือน">♢<span>3</span></button><div className="user-avatar">{user.name.charAt(0)}</div><div className="header-user"><strong>{user.name}</strong><small>{user.label}</small></div></div>
+        <div className="header-actions"><button className="bell-button" aria-label="แจ้งเตือน"><Bell aria-hidden="true" size={18} strokeWidth={1.8} /><span>3</span></button><div className="user-avatar">{user.name.charAt(0)}</div><div className="header-user"><strong>{user.name}</strong><small>{user.label}</small></div></div>
       </header>
 
       <div className="dashboard-content">
         {active === 'สร้างคำขอใหม่' && canCreateRequest ? (
           <section className="request-form-layout">
-            <form className="request-form panel" onSubmit={(event) => { event.preventDefault(); submitRequest(true) }}>
+            <form className="request-form panel" onSubmit={(event) => { event.preventDefault(); if (formStep < 2) { goToNextFormStep(); return } const validationMessage = validateRequestStep(2); if (validationMessage) { setMessage(validationMessage); return } submitRequest(true) }}>
               <div className="panel-header"><div><h2>{editingRequestCode ? `แก้ไขคำขอ ${editingRequestCode}` : 'สร้างคำของบประมาณ'}</h2><p>กรอกข้อมูลให้ครบถ้วนเพื่อส่งคำขออนุมัติ</p></div><span className="draft-badge">{editingRequestCode ? 'กำลังแก้ไข' : 'แบบคำขอใหม่'}</span></div>
               <div className="form-body">
                 {message && <div className={`form-message ${message.includes('กรุณา') || message.includes('ไม่มีสิทธิ์') ? 'error' : ''}`} role="status">{message}</div>}
                 <div className="creation-policy"><span>สิทธิ์การสร้างคำขอ</span><strong>{creationPolicy}</strong></div>
+                <nav className="request-stepper" aria-label="ขั้นตอนการสร้างคำขอ">
+                  {['ข้อมูลคำขอ', 'รายการและผู้รับเงิน', 'เอกสารและยืนยัน'].map((step, index) => (
+                    <div className={`request-stepper-item ${index === formStep ? 'active' : ''} ${index < formStep ? 'completed' : ''}`} key={step} aria-current={index === formStep ? 'step' : undefined}>
+                      <span>{index < formStep ? '✓' : index + 1}</span><strong>{step}</strong>
+                    </div>
+                  ))}
+                </nav>
+                <p className="request-step-caption">ขั้นที่ {formStep + 1} จาก 3: {['ข้อมูลคำขอ', 'รายการและผู้รับเงิน', 'เอกสารและยืนยัน'][formStep]}</p>
                 {/* ส่วนที่ 2.1 ข้อมูลรายการ ประเภทการเบิก วันที่ และผู้ขอ */}
                 <div className="request-document-form">
+                  <div className="form-step-content" hidden={formStep !== 0}>
                   <div className="request-info-grid">
                     <section className="request-info-box">
                       <div className="request-type-row"><label><input type="radio" checked={requestType === 'เงินสดยืม'} disabled={finance} onChange={() => setRequestType('เงินสดยืม')} /> ขอทดรองเงินสดยืม{finance && <small> — ไม่มีสิทธิ์สำหรับฝ่ายการเงิน</small>}</label><label><input type="radio" checked={requestType === 'เบิกจ่าย'} onChange={() => setRequestType('เบิกจ่าย')} /> ขอเบิกจ่ายงบประมาณ</label></div>
-                      {finance && <section className="finance-request-note"><strong>เงื่อนไขการเบิกเฉพาะฝ่ายการเงิน</strong><span>อนุญาตเฉพาะการเบิกจ่ายงบประมาณ และไม่อนุญาตให้ทดรองเป็นเงินสดยืม กรุณาระบุเลขที่รายการและกรอบการจ่ายเงินด้านล่าง</span><div className="document-field-row"><label className="document-field"><span>เลขที่รายการ / เลขที่หนังสือการเงิน <b>*</b></span><input value={financeReferenceNo} onChange={(event) => setFinanceReferenceNo(event.target.value)} placeholder="เช่น FIN-2569-001 หรือเลขหนังสือภายใน" /></label><label className="document-field"><span>กรอบการจ่ายเงิน <b>*</b></span><input value={financePurpose} onChange={(event) => setFinancePurpose(event.target.value)} placeholder="เช่น จ่ายตามใบสำคัญ / ภาษี / งบค่าบริการ" /></label></div></section>}
+                      {finance && <section className="finance-request-note"><strong>เงื่อนไขการเบิกเฉพาะฝ่ายการเงิน</strong><span>อนุญาตเฉพาะการเบิกจ่ายงบประมาณ และไม่อนุญาตให้ทดรองเป็นเงินสดยืม กรุณาระบุเลขที่รายการและกรอบการจ่ายเงินด้านล่าง</span><div className="document-field-row"><label className="document-field"><span>เลขที่รายการ / เลขที่หนังสือการเงิน <b>*</b></span><input value={financeReferenceNo} onChange={(event) => setFinanceReferenceNo(event.target.value)} placeholder="เช่น FIN-2569-001" /></label><label className="document-field"><span>กรอบการจ่ายเงิน <b>*</b></span><input value={financePurpose} onChange={(event) => setFinancePurpose(event.target.value)} placeholder="เช่น จ่ายตามใบสำคัญ" /></label></div></section>}
                       <div className="request-type-row timing-row"><strong>รูปแบบการเบิก</strong><label><input type="radio" checked={requestTiming === 'เบิกล่วงหน้า'} onChange={() => { setRequestTiming('เบิกล่วงหน้า'); setDocumentType(category === 'จัดซื้อวัสดุและครุภัณฑ์' ? 'ใบเสนอราคา' : 'รายงานความจำเป็น'); setAttachments([]) }} /> เบิกล่วงหน้า</label><label><input type="radio" checked={requestTiming === 'เบิกย้อนหลัง'} onChange={() => { setRequestTiming('เบิกย้อนหลัง'); setDocumentType('ใบเสร็จรับเงิน'); setAttachments([]) }} /> เบิกย้อนหลัง</label></div>
                       <label className="document-field full"><span>รายการ / โครงการ <b>*</b></span><input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="ระบุชื่อรายการหรือโครงการ" /></label>
                       <div className="document-field-row"><label className="document-field"><span>ผู้ขอ</span><input value={user.name} readOnly /></label><label className="document-field"><span>หน่วยงาน</span><input value={user.unit} readOnly /></label></div>
-                      <div className="document-field-row"><label className="document-field"><span>วันที่ขอ</span><input type="date" value={requestDate} onChange={(event) => setRequestDate(event.target.value)} /></label><label className="document-field"><span>ต้องการใช้งานภายใน</span><input type="date" value={neededDate} onChange={(event) => setNeededDate(event.target.value)} /></label></div>
+                      <div className="document-field-row"><label className="document-field"><span>วันที่ขอ</span><BuddhistDatePicker label="วันที่ขอ" value={requestDate} onChange={setRequestDate} /></label><label className="document-field"><span>ต้องการใช้งานภายใน</span><BuddhistDatePicker label="ต้องการใช้งานภายใน" value={neededDate} onChange={setNeededDate} /></label></div>
                     </section>
                     <section className="request-info-box budget-info-box">
                       <label className="document-field"><span>ปีงบประมาณ</span><input value={budgetYear} onChange={(event) => setBudgetYear(event.target.value)} /></label>
                       <div className="budget-scope"><strong>{roleBudget.scope}</strong><span>งบปี {budgetYear}</span></div>
                       <div className="budget-display-grid"><div><span>งบทั้งหมด</span><strong>{budgetTotalNumber.toLocaleString('th-TH')} บาท</strong></div><div><span>ใช้งบไปแล้ว</span><strong>{budgetUsedNumber.toLocaleString('th-TH')} บาท</strong></div><div className="remaining"><span>งบคงเหลือ</span><strong>{budgetRemaining.toLocaleString('th-TH')} บาท</strong></div></div>
                       {committedAmount > 0 && <div className="budget-warning">มีงบกันไว้จากคำขอที่รออนุมัติแล้ว {committedAmount.toLocaleString('th-TH')} บาท</div>}
-                      <label className="document-field"><span>วงเงินที่ขออนุมัติ <b>*</b></span><div className="amount-input"><input type="text" inputMode="numeric" value={amount} onChange={(event) => { const digits = event.target.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, ''); setAmount(digits ? Number(digits).toLocaleString('en-US') : '') }} placeholder="เช่น 50,000" /><span>บาท</span></div></label>
+                      <label className="document-field"><span>วงเงินที่ขออนุมัติ <b>*</b></span><div className="amount-input"><input type="text" inputMode="numeric" value={amount} readOnly placeholder="คำนวณจากรวมเงิน" /><span>บาท</span></div></label>
                       {numericAmount > budgetRemaining && <div className="budget-warning">วงเงินเกินงบคงเหลือ {budgetRemaining.toLocaleString('th-TH')} บาท</div>}
                                             {numericAmount > 0 && expenseTotal !== numericAmount && <div className="budget-warning">ยอดรายการค่าใช้จ่าย {expenseTotal.toLocaleString('th-TH')} บาท ยังไม่ตรงกับวงเงินที่ขอ</div>}
                     </section>
@@ -931,64 +900,103 @@ export function Dashboard({ user, logout }: { user: DemoUser; logout: () => void
                   <div className="compatibility-note"><strong>ความเข้ากันได้</strong><span>รูปแบบเบิกล่วงหน้าและเบิกย้อนหลังใช้ได้กับทุกประเภทงบประมาณทุกรูปแบบการจ่ายเงิน การเลือกประเภทงบจะกรองเอกสารประกอบให้ตรงกับลักษณะงาน</span></div>
                   <label className="document-field"><span>ชื่อโครงการหรือกิจกรรม (ถ้ามี)</span><input value={projectName} onChange={(event) => setProjectName(event.target.value)} placeholder="ระบุชื่อโครงการ" /></label>
                   <label className="document-field"><span>วัตถุประสงค์และเหตุผลความจำเป็น <b>*</b></span><textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={4} placeholder="ระบุวัตถุประสงค์ ประโยชน์ และเหตุผลของการขออนุมัติ" /></label>
+                  </div>
 
                   {/* ส่วนที่ 2.3 ตรรกะรายการย่อยและยอดรวมสำหรับตรวจกับวงเงินที่ขอ */}
+                  <div className="form-step-content" hidden={formStep !== 1}>
                   <section className="expense-section"><div className="expense-heading"><div><strong>รายการค่าใช้จ่าย / รายการขอเบิก</strong><span>ระบุรายการและจำนวนเงิน</span></div><button type="button" onClick={() => setExpenseItems((items) => [...items, { name: '', detail: '', amount: '' }])}>+ เพิ่มรายการ</button></div><div className="expense-table"><div className="expense-row expense-header"><span>ลำดับ</span><span>รายการ</span><span>รายละเอียด</span><span>จำนวนเงิน (บาท)</span><span /></div>{expenseItems.map((item, index) => <div className="expense-row" key={index}><span>{index + 1}</span><input value={item.name} onChange={(event) => setExpenseItems((items) => items.map((row, rowIndex) => rowIndex === index ? { ...row, name: event.target.value } : row))} placeholder="ชื่อรายการ" /><input value={item.detail} onChange={(event) => setExpenseItems((items) => items.map((row, rowIndex) => rowIndex === index ? { ...row, detail: event.target.value } : row))} placeholder="รายละเอียด" /><input type="text" inputMode="numeric" value={item.amount} onChange={(event) => { const digits = event.target.value.replace(/[^0-9]/g, ''); setExpenseItems((items) => items.map((row, rowIndex) => rowIndex === index ? { ...row, amount: digits ? Number(digits).toLocaleString('en-US') : '' } : row)) }} placeholder="0" /><button type="button" aria-label="ลบรายการ" disabled={expenseItems.length === 1} onClick={() => setExpenseItems((items) => items.filter((_, rowIndex) => rowIndex !== index))}>×</button></div>)}<div className="expense-total"><span>รวมเงิน</span><strong>{expenseTotal.toLocaleString('th-TH')} บาท</strong></div></div></section>
 
                   {/* ส่วนที่ 2.4 ข้อมูลผู้รับเงินและการชำระเงิน */}
-                  <section className="payment-section"><div className="payment-heading"><div><strong>ข้อมูลผู้รับเงินและบัญชีธนาคาร</strong><span>ใช้สำหรับโอนเงินหรือเงินสดยืมตามสิทธิ์ผู้รับผิดชอบ</span></div></div><div className="document-field-row"><label className="document-field"><span>ชื่อผู้รับเงิน <b>*</b></span><input value={recipientName} onChange={(event) => setRecipientName(event.target.value)} placeholder="ชื่อผู้รับเงิน" /></label><label className="document-field"><span>เลขประจำตัวผู้เสียภาษี / บัตรประชาชน <b>*</b></span><input value={taxId} onChange={(event) => setTaxId(event.target.value.replace(/[^0-9]/g, ''))} placeholder="13 หลักหรือเลขบัตรประชาชน" /></label></div><div className="document-field-row"><label className="document-field"><span>ธนาคาร <b>*</b></span><input value={bankName} onChange={(event) => setBankName(event.target.value)} placeholder="ชื่อธนาคาร" /></label><label className="document-field"><span>เลขที่บัญชี <b>*</b></span><input value={accountNumber} onChange={(event) => setAccountNumber(event.target.value.replace(/[^0-9-]/g, ''))} placeholder="กรอกเลขที่บัญชี" /></label></div><div className="document-field-row"><label className="document-field"><span>ชื่อบัญชีธนาคาร <b>*</b></span><input value={accountName} onChange={(event) => setAccountName(event.target.value)} placeholder="ชื่อเจ้าของบัญชี" /></label>{requestType === 'เงินสดยืม' ? <label className="document-field"><span>วันที่ต้องเคลียร์เงินสดยืม <b>*</b></span><input type="date" value={settlementDate} onChange={(event) => setSettlementDate(event.target.value)} /></label> : <label className="document-field"><span>วันที่ชำระโดยประมาณ</span><input type="date" value={settlementDate} onChange={(event) => setSettlementDate(event.target.value)} /></label>}</div></section>
+                  <section className="payment-section"><div className="payment-heading"><div><strong>ข้อมูลผู้รับเงินและบัญชีธนาคาร</strong><span>ใช้สำหรับโอนเงินหรือเงินสดยืมตามสิทธิ์ผู้รับผิดชอบ</span></div></div><div className="document-field-row"><label className="document-field"><span>ชื่อผู้รับเงิน <b>*</b></span><input value={recipientName} onChange={(event) => setRecipientName(event.target.value)} placeholder="ชื่อผู้รับเงิน" /></label><label className="document-field"><span>เลขประจำตัวผู้เสียภาษี / บัตรประชาชน <b>*</b></span><input value={taxId} onChange={(event) => setTaxId(event.target.value.replace(/[^0-9]/g, ''))} placeholder="13 หลักหรือเลขบัตรประชาชน" /></label></div><div className="document-field-row"><label className="document-field"><span>ธนาคาร <b>*</b></span><input value={bankName} onChange={(event) => setBankName(event.target.value)} placeholder="ชื่อธนาคาร" /></label><label className="document-field"><span>เลขที่บัญชี <b>*</b></span><input value={accountNumber} onChange={(event) => setAccountNumber(event.target.value.replace(/[^0-9-]/g, ''))} placeholder="กรอกเลขที่บัญชี" /></label></div><div className="document-field-row"><label className="document-field"><span>ชื่อบัญชีธนาคาร <b>*</b></span><input value={accountName} onChange={(event) => setAccountName(event.target.value)} placeholder="ชื่อเจ้าของบัญชี" /></label>{requestType === 'เงินสดยืม' ? <label className="document-field"><span>วันที่ต้องเคลียร์เงินสดยืม <b>*</b></span><BuddhistDatePicker label="วันที่ต้องเคลียร์เงินสดยืม" value={settlementDate} onChange={setSettlementDate} /></label> : <label className="document-field"><span>วันที่ชำระโดยประมาณ</span><BuddhistDatePicker label="วันที่ชำระโดยประมาณ" value={settlementDate} onChange={setSettlementDate} /></label>}</div></section>
+                  </div>
 
                   {/* ส่วนที่ 2.5 เอกสารประกอบ ตรวจรูปแบบไฟล์และประเภทเอกสาร */}
+                  <div className="form-step-content" hidden={formStep !== 2}>
+                  <section className="request-confirmation"><h3>ตรวจสอบข้อมูลก่อนส่งคำขอ</h3><dl><div><dt>รายการ / โครงการ</dt><dd>{title || '—'}</dd></div><div><dt>รูปแบบคำขอ</dt><dd>{requestType} • {requestTiming}</dd></div><div><dt>หน่วยงาน</dt><dd>{user.unit}</dd></div><div><dt>จำนวนรายการ</dt><dd>{expenseItems.length} รายการ</dd></div><div><dt>วงเงินรวม</dt><dd>{numericAmount.toLocaleString('th-TH')} บาท</dd></div></dl></section>
                   <div className="form-field full attachment-field">
-                                      <span>เอกสารประกอบ</span>
+                    <span>เอกสารประกอบ</span>
                     <div className="attachment-form">
                       <label><span>ประเภทเอกสาร</span><select value={documentType} onChange={(event) => setDocumentType(event.target.value)}>{categoryDocumentOptions.map((option) => <option key={option}>{option}</option>)}</select></label>
-                      <label><span>แนบไฟล์</span><input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" onChange={(event) => setSelectedAttachment(event.target.files?.[0] ?? null)} /></label>
+                      <div className="attachment-file-control"><span>แนบไฟล์</span><input ref={attachmentInputRef} className="attachment-file-input" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" onChange={(event) => setSelectedAttachment(event.target.files?.[0] ?? null)} /><div className="attachment-file-picker"><button type="button" className="choose-attachment" onClick={() => attachmentInputRef.current?.click()}>เลือกไฟล์</button><span className="selected-attachment-name">{selectedAttachment?.name ?? 'ยังไม่ได้เลือกไฟล์'}</span></div></div>
                       <button type="button" className="add-attachment" onClick={addAttachment} disabled={!selectedAttachment}>เพิ่มเอกสาร</button>
                     </div>
                     <small>{categoryDocumentHint} • รองรับ PDF, JPG, PNG หรือเอกสาร Office ไม่เกิน 10 MB</small>
                     {attachments.length > 0 && <div className="attachment-list">{attachments.map((item, index) => <div className="attachment-item" key={`${item.name}-${index}`}><div><strong>{item.type}</strong><span>{item.name}</span></div><button type="button" aria-label={`ลบ ${item.name}`} onClick={() => setAttachments((items) => items.filter((_, itemIndex) => itemIndex !== index))}>×</button></div>)}</div>}
                   </div>
+                  </div>
                 </div>
               </div>
               {/* ส่วนที่ 2.6 ปุ่มจัดการคำขอ: ฉบับร่างหรือส่งอนุมัติ */}
-              <div className="form-actions"><button type="button" className="secondary-action" onClick={() => submitRequest(false)}>บันทึกฉบับร่าง</button><button type="submit" className="submit-action">{editingRequestCode ? 'บันทึกและส่งคำขออีกครั้ง' : 'ส่งคำขออนุมัติ'}</button></div>
+              <div className="form-actions">
+                {formStep > 0 && <button type="button" className="secondary-action" onClick={() => { setMessage(''); setFormStep((step) => Math.max(step - 1, 0)) }}>ย้อนกลับ</button>}
+                <button type="button" className="secondary-action" onClick={() => submitRequest(false)}>บันทึกฉบับร่าง</button>
+                {formStep < 2
+                  ? <button type="button" className="submit-action" onClick={goToNextFormStep}>ถัดไป</button>
+                  : <button type="submit" className="submit-action">{editingRequestCode ? 'บันทึกและส่งคำขออีกครั้ง' : 'ยืนยันและส่งคำขออนุมัติ'}</button>}
+              </div>
             </form>
 
             <aside className="request-side">
-              <article className="panel route-card"><div className="panel-header"><div><h2>สายอนุมัติ</h2><p>คำนวณจากวงเงินอัตโนมัติ</p></div></div>{user.id === 'executive' && <div className="budget-warning">ข้อยกเว้นผู้บริหาร: คำขอข้ามหัวหน้าแผนกและส่งคณะกรรมการตรวจสอบเพื่อไม่อนุมัติด้วยตนเอง</div>}<div className="route-list">{approvalRoute.map((step, index) => <div className="route-step" key={step}><span className="route-number">{index + 1}</span><div><strong>{step}</strong><small>{index === 0 ? (step === 'คณะกรรมการตรวจสอบ' ? 'ผู้อนุมัติอิสระ' : 'ผู้อนุมัติระดับแผนก') : index === approvalRoute.length - 1 && step === 'ผู้บริหาร' ? 'ผู้มีอำนาจสูงสุด' : 'ผู้อนุมัติตามลำดับ'}</small></div>{index < approvalRoute.length - 1 && <span className="route-arrow">↓</span>}</div>)}</div></article>
+              <article className="panel route-card"><div className="panel-header"><div><h2>สายอนุมัติ</h2><p>คำนวณจากวงเงินอัตโนมัติ</p></div></div>{user.id === 'executive' && <div className="budget-warning">ข้อยกเว้นผู้บริหาร: คำขอข้ามหัวหน้าแผนกและส่งคณะกรรมการตรวจสอบเพื่อไม่อนุมัติด้วยตนเอง</div>}<div className="route-list">{approvalRoute.map((step, index) => <div className="route-step" key={step}><span className="route-number">{index + 1}</span><div><strong>{step}</strong><small>{step === 'คณะกรรมการตรวจสอบ' ? 'ผู้อนุมัติอิสระ' : step === 'ผู้บริหาร' ? 'ผู้มีอำนาจสูงสุด' : index === 0 ? 'ผู้อนุมัติระดับแผนก' : 'ผู้อนุมัติตามลำดับ'}</small></div>{index < approvalRoute.length - 1 && <span className="route-arrow">↓</span>}</div>)}</div></article>
               {user.id === 'executive' ? <article className="panel budget-guide"><h2>ข้อยกเว้นสำหรับผู้บริหาร</h2><p>คำขอของผู้บริหารเอง</p><strong>คณะกรรมการตรวจสอบ → การเงิน</strong><hr/><p>คำขอของหน่วยงานอื่นเกิน 10,000 บาท</p><strong>หัวหน้าแผนก → ผู้บริหาร → การเงิน</strong></article> : <article className="panel budget-guide"><h2>สายอนุมัติตามวงเงิน</h2><p>ไม่เกิน 10,000 บาท</p><strong>หัวหน้าแผนก → ฝ่ายการเงิน</strong><hr/><p>มากกว่า 10,000 บาท</p><strong>หัวหน้าแผนก → ผู้บริหาร → ฝ่ายการเงิน</strong><hr/><p>คำขอของหัวหน้าแผนก</p><strong>ข้ามหัวหน้าแผนก → ขั้นถัดไป</strong><hr/><p>คำขอของฝ่ายการเงิน</p><strong>ไม่ส่งกลับมาตรวจโดยผู้ขอ</strong></article>}
             </aside>
           </section>
+        ) : isApprovalPage && finance ? (
+          <FinanceReview
+            mode="review"
+            active={active}
+            user={user}
+            approvalCandidates={approvalCandidates}
+            approvalScopeDescription={approvalScopeDescription}
+            message={message}
+            selectedRequest={selectedRequest}
+            approvalOverrides={approvalOverrides}
+            onSelectRequest={setSelectedRequest}
+            onDecision={(code, result, details) => processApproval(code, result, details)}
+          />
         ) : isApprovalPage ? (
           <section className="approval-page panel">
-            <div className="panel-header"><div><h2>{active === 'ติดตามเงินยืม' ? 'รายการรอเคลียร์เงินยืม' : 'คำขอในขอบเขตอำนาจ'}</h2><p>{active === 'ติดตามเงินยืม' ? 'ตรวจหลักฐานการเคลียร์เงินยืมและปิดรายการ' : 'อนุมัติหรือส่งกลับแก้ไขตามบทบาทและวงเงินที่กำหนด'}</p></div></div>
+            <div className="panel-header"><div><h2>คำขอในขอบเขตอำนาจ</h2><p>อนุมัติหรือส่งกลับแก้ไขตามบทบาทและวงเงินที่กำหนด</p></div></div>
             {message && <div className="form-message approval-message" role="status">{message}</div>}
-            <div className="approval-scope"><strong>ขอบเขตสิทธิ์: {user.label}</strong><span>{active === 'ติดตามเงินยืม' ? 'ฝ่ายการเงินตรวจหลักฐานการเคลียร์เงินยืมและปิดรายการหลังผู้ขอชำระคืน' : approvalScopeDescription}</span></div>
-            <div className="table-wrap"><table><thead><tr><th>เลขที่คำขอ</th><th>รายการ</th><th>หน่วยงาน</th><th>วงเงิน</th><th>การดำเนินการ</th></tr></thead><tbody>{approvalCandidates.map((item) => <tr key={item.code}><td><strong>{item.code}</strong><small>{item.date}</small></td><td><strong>{item.title}</strong><small>{item.requester}</small></td><td>{item.unit}</td><td>{money(item.amount)}</td><td><div className="approval-actions"><button type="button" className="view-detail" onClick={() => setSelectedRequest(item)}>ดูรายละเอียดและดำเนินการ</button></div></td></tr>)}</tbody></table>{approvalCandidates.length === 0 && <div className="empty-approval">ไม่มีคำขออยู่ในขอบเขตอำนาจของคุณในขณะนี้</div>}</div>
+            <div className="approval-scope"><strong>ขอบเขตสิทธิ์: {user.label}</strong><span>{approvalScopeDescription}</span></div>
+            <DataTable
+              rows={approvalCandidates}
+              getRowKey={(item) => item.code}
+              emptyMessage="ไม่มีคำขออยู่ในขอบเขตอำนาจของคุณในขณะนี้"
+              columns={[
+                { key: 'code', header: 'เลขที่คำขอ', render: (item) => <><strong>{item.code}</strong><small>{item.date}</small></>, sortValue: (item) => item.code, searchValue: (item) => `${item.code} ${item.date}` },
+                { key: 'title', header: 'รายการ', render: (item) => <><strong>{item.title}</strong><small>{item.requester}</small></>, sortValue: (item) => item.title, searchValue: (item) => `${item.title} ${item.requester}` },
+                { key: 'unit', header: 'หน่วยงาน', render: (item) => item.unit, sortValue: (item) => item.unit },
+                { key: 'amount', header: 'วงเงิน', render: (item) => money(item.amount), sortValue: (item) => Number(item.amount) || 0 },
+                { key: 'actions', header: 'การดำเนินการ', render: (item) => <div className="approval-actions"><button type="button" className="view-detail" onClick={() => setSelectedRequest(item)}>ดูรายละเอียดและดำเนินการ</button></div> },
+              ]}
+            />
             {selectedRequest && <RequestDetails request={{ ...selectedRequest, status: approvalOverrides[selectedRequest.code] ?? selectedRequest.status }} onClose={() => setSelectedRequest(null)} decisionRole={user.id} onDecision={(result, details) => processApproval(selectedRequest.code, result, details)} />}
           </section>
         ) : active === 'คำขอของฉัน' ? (
           <section className="panel management-page">
-            <div className="panel-header"><div><h2>คำขอของฉัน</h2><p>ติดตามสถานะและประวัติการพิจารณาของคำขอที่คุณสร้าง</p></div><button type="button" onClick={() => { setEditingRequestCode(null); setActive('สร้างคำขอใหม่') }}>+ สร้างคำขอ</button></div>
-            <div className="table-wrap">
-              <table><thead><tr><th>เลขที่คำขอ</th><th>รายการ</th><th>วงเงิน</th><th>สถานะ / ประวัติล่าสุด</th><th>การดำเนินการ</th></tr></thead>
-                <tbody>{myRequests.map((item) => {
+            <div className="panel-header"><div><h2>คำขอของฉัน</h2><p>ติดตามสถานะและประวัติการพิจารณาของคำขอที่คุณสร้าง</p></div><button type="button" onClick={() => { setEditingRequestCode(null); setFormStep(0); setActive('สร้างคำขอใหม่') }}>+ สร้างคำขอ</button></div>
+            <DataTable
+              rows={myRequests}
+              getRowKey={(item) => item.code}
+              emptyMessage="ยังไม่มีคำขอของคุณ"
+              columns={[
+                { key: 'code', header: 'เลขที่คำขอ', render: (item) => <><strong>{item.code}</strong><small>{item.date}</small></>, sortValue: (item) => item.code, searchValue: (item) => `${item.code} ${item.date}` },
+                { key: 'title', header: 'รายการ', render: (item) => <><strong>{item.title}</strong><small>{item.category ?? 'ยังไม่ระบุประเภทงบ'}</small></>, sortValue: (item) => item.title, searchValue: (item) => `${item.title} ${item.category ?? ''}` },
+                { key: 'amount', header: 'วงเงิน', render: (item) => money(item.amount), sortValue: (item) => Number(item.amount) || 0 },
+                { key: 'status', header: 'สถานะ / ประวัติล่าสุด', render: (item) => {
                   const currentStatus = approvalOverrides[item.code] ?? item.status
                   const latestHistory = item.approvalHistory?.at(-1)
+                  return <><StatusBadge status={currentStatus} /><small>{latestHistory ? `${latestHistory.label ?? latestHistory.step}: ${latestHistory.result}${latestHistory.comment ? ` • เหตุผล: ${latestHistory.comment}` : ''}` : 'ยังไม่มีประวัติการอนุมัติ'}</small></>
+                }, sortValue: (item) => approvalOverrides[item.code] ?? item.status, searchValue: (item) => `${approvalOverrides[item.code] ?? item.status} ${item.approvalHistory?.at(-1)?.comment ?? ''}` },
+                { key: 'actions', header: 'การดำเนินการ', searchValue: () => '', render: (item) => {
+                  const currentStatus = approvalOverrides[item.code] ?? item.status
                   const canEdit = ['ฉบับร่าง', 'ส่งแก้ไข'].includes(currentStatus)
                   const canSubmitSettlement = employee && item.requesterId === user.id && item.requestType === 'เงินสดยืม' && currentStatus === 'รอเคลียร์เงินยืม'
-                  return <tr key={item.code}>
-                    <td><strong>{item.code}</strong><small>{item.date}</small></td>
-                    <td><strong>{item.title}</strong><small>{item.category ?? 'ยังไม่ระบุประเภทงบ'}</small></td>
-                    <td>{money(item.amount)}</td>
-                    <td><span className="status">{currentStatus}</span><small>{latestHistory ? `${latestHistory.label ?? latestHistory.step}: ${latestHistory.result}` : 'ยังไม่มีประวัติการอนุมัติ'}</small></td>
-                    <td className="request-row-actions"><button type="button" className="view-detail" onClick={() => setSelectedRequest(item)}>ดูรายละเอียด</button>{canEdit && <button type="button" className="view-detail" onClick={() => editRequest(item)}>แก้ไข / ส่งอีกครั้ง</button>}{canSubmitSettlement && <button type="button" className="view-detail" onClick={() => setSelectedRequest(item)}>ส่งหลักฐานเคลียร์เงินยืม</button>}</td>
-                  </tr>
-                })}</tbody>
-              </table>
-              {myRequests.length === 0 && <div className="empty-approval">ยังไม่มีคำขอของคุณ</div>}
-            </div>
+                  return <div className="request-row-actions"><button type="button" className="view-detail" onClick={() => setSelectedRequest(item)}>ดูรายละเอียด</button>{canEdit && <button type="button" className="view-detail" onClick={() => editRequest(item)}>แก้ไข / ส่งอีกครั้ง</button>}{canSubmitSettlement && <button type="button" className="view-detail" onClick={() => setSelectedRequest(item)}>ส่งหลักฐานเคลียร์เงินยืม</button>}</div>
+                } },
+              ]}
+            />
             {selectedRequest && <RequestDetails
               request={{ ...selectedRequest, status: approvalOverrides[selectedRequest.code] ?? selectedRequest.status }}
               onClose={() => setSelectedRequest(null)}
@@ -1000,35 +1008,74 @@ export function Dashboard({ user, logout }: { user: DemoUser; logout: () => void
           <section className="panel management-page">
             <div className="panel-header"><div><h2>{active}</h2><p>ข้อมูลสำหรับบัญชีสาธิตในเบราว์เซอร์นี้</p></div></div>
             {active === 'ผู้ใช้งาน' ? (
-              <div className="table-wrap"><table><thead><tr><th>ชื่อผู้ใช้</th><th>บทบาท</th><th>หน่วยงาน</th><th>สิทธิ์โดยสรุป</th><th>สถานะ</th></tr></thead><tbody>
-                {demoAccounts.map((account) => <tr key={account.role}><td><strong>{account.login}</strong><small>{account.name}</small></td><td>{account.role}</td><td>{account.unit}</td><td>{account.permissions}</td><td><span className="status">ใช้งาน</span></td></tr>)}
-              </tbody></table></div>
+              <DataTable
+                rows={demoAccounts}
+                getRowKey={(account) => account.role}
+                emptyMessage="ไม่พบข้อมูลผู้ใช้งาน"
+                columns={[
+                  { key: 'login', header: 'ชื่อผู้ใช้', render: (account) => <><strong>{account.login}</strong><small>{account.name}</small></>, sortValue: (account) => account.login, searchValue: (account) => `${account.login} ${account.name}` },
+                  { key: 'role', header: 'บทบาท', render: (account) => account.role, sortValue: (account) => account.role },
+                  { key: 'unit', header: 'หน่วยงาน', render: (account) => account.unit, sortValue: (account) => account.unit },
+                  { key: 'permissions', header: 'สิทธิ์โดยสรุป', render: (account) => account.permissions, sortValue: (account) => account.permissions },
+                  { key: 'status', header: 'สถานะ', render: () => <StatusBadge status="ใช้งาน" /> },
+                ]}
+              />
             ) : active === 'บทบาทและสิทธิ์' ? (
-              <div className="table-wrap"><table><thead><tr><th>บทบาท</th><th>สร้างคำขอ</th><th>ติดตาม</th><th>อนุมัติ / ตรวจสอบ</th></tr></thead><tbody>
-                {rolePermissionRows.map((row) => <tr key={row[0]}>{row.map((cell, index) => <td key={`${row[0]}-${index}`}>{cell}</td>)}</tr>)}
-              </tbody></table></div>
+              <DataTable
+                rows={rolePermissionRows}
+                getRowKey={(row) => row[0]}
+                emptyMessage="ไม่พบข้อมูลบทบาท"
+                columns={[
+                  ...['บทบาท', 'สร้างคำขอ', 'ติดตาม', 'อนุมัติ / ตรวจสอบ'].map((header, index) => ({
+                    key: `permission-${index}`,
+                    header,
+                    render: (row: string[]) => row[index],
+                    sortValue: (row: string[]) => row[index],
+                  })),
+                ]}
+              />
             ) : active === 'หน่วยงาน' ? (
-              <div className="table-wrap"><table><thead><tr><th>หน่วยงาน</th><th>บัญชีสาธิต</th><th>คำขอในระบบ</th></tr></thead><tbody>
-                {[...new Set([...demoAccounts.map((account) => account.unit), ...allRequests.map((item) => item.unit)])].map((unit) => <tr key={unit}><td><strong>{unit}</strong></td><td>{demoAccounts.filter((account) => account.unit === unit).length}</td><td>{allRequests.filter((item) => item.unit === unit).length}</td></tr>)}
-              </tbody></table></div>
+              <DataTable
+                rows={[...new Set([...demoAccounts.map((account) => account.unit), ...allRequests.map((item) => item.unit)])]}
+                getRowKey={(unit) => unit}
+                emptyMessage="ไม่พบข้อมูลหน่วยงาน"
+                columns={[
+                  { key: 'unit', header: 'หน่วยงาน', render: (unit) => <strong>{unit}</strong>, sortValue: (unit) => unit },
+                  { key: 'users', header: 'บัญชีสาธิต', render: (unit) => demoAccounts.filter((account) => account.unit === unit).length, sortValue: (unit) => demoAccounts.filter((account) => account.unit === unit).length },
+                  { key: 'requests', header: 'คำขอในระบบ', render: (unit) => allRequests.filter((item) => item.unit === unit).length, sortValue: (unit) => allRequests.filter((item) => item.unit === unit).length },
+                ]}
+              />
             ) : active === 'วงเงินอนุมัติ' ? (
-              <div className="table-wrap"><table><thead><tr><th>เงื่อนไขวงเงิน</th><th>สายอนุมัติ</th><th>ข้อยกเว้น</th></tr></thead><tbody>
-                <tr><td>ไม่เกิน 10,000 บาท</td><td>หัวหน้าแผนก → ฝ่ายการเงิน</td><td>ผู้ขอที่เป็นหัวหน้าแผนกข้ามขั้นหัวหน้าแผนก</td></tr>
-                <tr><td>มากกว่า 10,000 บาท</td><td>หัวหน้าแผนก → ผู้บริหาร → ฝ่ายการเงิน</td><td>คำขอหัวหน้าแผนกข้ามขั้นตนเอง; ผู้บริหารอนุมัติคำขอตนเองไม่ได้</td></tr>
-                <tr><td>คำขอของผู้บริหาร</td><td>คณะกรรมการตรวจสอบ → ฝ่ายการเงิน</td><td>แยกผู้อนุมัติออกจากผู้ขอ</td></tr>
-                <tr><td>คำขอของฝ่ายการเงิน</td><td>ผู้บริหาร</td><td>ข้ามการตรวจของหัวหน้าแผนกที่ไม่ตรงหน่วยงาน และไม่ส่งกลับให้ผู้ขออนุมัติการจ่าย</td></tr>
-              </tbody></table></div>
+              <DataTable
+                rows={[
+                  { rule: 'ไม่เกิน 10,000 บาท', route: 'หัวหน้าแผนก → ฝ่ายการเงิน', exception: 'ผู้ขอที่เป็นหัวหน้าแผนกข้ามขั้นหัวหน้าแผนก' },
+                  { rule: 'มากกว่า 10,000 บาท', route: 'หัวหน้าแผนก → ผู้บริหาร → ฝ่ายการเงิน', exception: 'คำขอหัวหน้าแผนกข้ามขั้นตนเอง; ผู้บริหารอนุมัติคำขอตนเองไม่ได้' },
+                  { rule: 'คำขอของผู้บริหาร', route: 'คณะกรรมการตรวจสอบ → ฝ่ายการเงิน', exception: 'แยกผู้อนุมัติออกจากผู้ขอ' },
+                  { rule: 'คำขอของฝ่ายการเงิน', route: 'ผู้บริหาร', exception: 'ข้ามการตรวจของหัวหน้าแผนกที่ไม่ตรงหน่วยงาน และไม่ส่งกลับให้ผู้ขออนุมัติการจ่าย' },
+                ]}
+                getRowKey={(row) => row.rule}
+                emptyMessage="ไม่พบเงื่อนไขวงเงิน"
+                columns={[
+                  { key: 'rule', header: 'เงื่อนไขวงเงิน', render: (row) => row.rule, sortValue: (row) => row.rule },
+                  { key: 'route', header: 'สายอนุมัติ', render: (row) => row.route, sortValue: (row) => row.route },
+                  { key: 'exception', header: 'ข้อยกเว้น', render: (row) => row.exception, sortValue: (row) => row.exception },
+                ]}
+              />
             ) : active === 'คำขอทั้งหมด' ? (
               <>
-                <div className="table-wrap"><table><thead><tr><th>เลขที่คำขอ</th><th>รายการ / ผู้ขอ</th><th>หน่วยงาน</th><th>วงเงิน</th><th>สถานะ</th><th>รายละเอียด</th></tr></thead><tbody>
-                  {allRequests.map((item) => <tr key={item.code}>
-                    <td><strong>{item.code}</strong><small>{item.date}</small></td>
-                    <td><strong>{item.title}</strong><small>{item.requester} • {item.requesterRole}</small></td>
-                    <td>{item.unit}</td><td>{money(item.amount)}</td>
-                    <td><span className="status">{approvalOverrides[item.code] ?? item.status}</span></td>
-                    <td><button type="button" className="view-detail" onClick={() => setSelectedRequest(item)}>ดูข้อมูลครบ</button></td>
-                  </tr>)}
-                </tbody></table></div>
+                <DataTable
+                  rows={allRequests}
+                  getRowKey={(item) => item.code}
+                  emptyMessage="ยังไม่มีคำขอในระบบ"
+                  columns={[
+                    { key: 'code', header: 'เลขที่คำขอ', render: (item) => <><strong>{item.code}</strong><small>{item.date}</small></>, sortValue: (item) => item.code, searchValue: (item) => `${item.code} ${item.date}` },
+                    { key: 'title', header: 'รายการ / ผู้ขอ', render: (item) => <><strong>{item.title}</strong><small>{item.requester} • {item.requesterRole}</small></>, sortValue: (item) => item.title, searchValue: (item) => `${item.title} ${item.requester} ${item.requesterRole}` },
+                    { key: 'unit', header: 'หน่วยงาน', render: (item) => item.unit, sortValue: (item) => item.unit },
+                    { key: 'amount', header: 'วงเงิน', render: (item) => money(item.amount), sortValue: (item) => Number(item.amount) || 0 },
+                    { key: 'status', header: 'สถานะ', render: (item) => <StatusBadge status={approvalOverrides[item.code] ?? item.status} />, sortValue: (item) => approvalOverrides[item.code] ?? item.status },
+                    { key: 'actions', header: 'รายละเอียด', render: (item) => <button type="button" className="view-detail" onClick={() => setSelectedRequest(item)}>ดูข้อมูลครบ</button> },
+                  ]}
+                />
                 {selectedRequest && <RequestDetails
                   request={{ ...selectedRequest, status: approvalOverrides[selectedRequest.code] ?? selectedRequest.status }}
                   onClose={() => setSelectedRequest(null)}
@@ -1037,17 +1084,27 @@ export function Dashboard({ user, logout }: { user: DemoUser; logout: () => void
                 />}
               </>
             ) : (
-              <div className="table-wrap"><table><thead><tr><th>วันเวลา</th><th>ผู้ดำเนินการ</th><th>กิจกรรม</th><th>เลขที่คำขอ</th></tr></thead><tbody>
-                {auditEntries.map((entry, index) => <tr key={`${entry.code}-${index}`}><td>{entry.date}</td><td>{entry.actor}</td><td>{entry.action}</td><td>{entry.code}</td></tr>)}
-              </tbody></table>{auditEntries.length === 0 && <div className="empty-approval">ยังไม่มีกิจกรรมในประวัติระบบ การสร้างหรือพิจารณาคำขอจะแสดงที่นี่</div>}</div>
+              <DataTable
+                rows={auditEntries}
+                getRowKey={(entry) => `${entry.code}-${entry.date}-${entry.actor}-${entry.action}`}
+                emptyMessage="ยังไม่มีกิจกรรมในประวัติระบบ การสร้างหรือพิจารณาคำขอจะแสดงที่นี่"
+                columns={[
+                  { key: 'date', header: 'วันเวลา', render: (entry) => entry.date, sortValue: (entry) => entry.date, searchValue: (entry) => entry.date },
+                  { key: 'actor', header: 'ผู้ดำเนินการ', render: (entry) => entry.actor, sortValue: (entry) => entry.actor },
+                  { key: 'action', header: 'กิจกรรม', render: (entry) => entry.action, sortValue: (entry) => entry.action },
+                  { key: 'code', header: 'เลขที่คำขอ', render: (entry) => entry.code, sortValue: (entry) => entry.code },
+                ]}
+              />
             )}
             <p className="management-note">หน้านี้เป็นข้อมูลสาธิตแบบ client-side ไม่ได้เชื่อมฐานข้อมูลหรือระบบจัดการบัญชีจริง</p>
           </section>
         ) : (
           <>
             <section className="role-banner"><div><p>ยินดีต้อนรับกลับมา</p><h2>คุณ{user.name}</h2><span>{user.unit} • {user.label}</span></div>{!admin && <button className="primary-action" onClick={() => setActive(employee || finance ? 'สร้างคำขอใหม่' : approvalMenuItem)}>{employee || finance ? '+ สร้างคำขอใหม่' : 'ดูคำขอรออนุมัติ'}</button>}</section>
-            <section className="stats-grid">{stats.map((stat, index) => <article className="stat-card" key={stat[0]}><div className={`stat-icon color-${index}`}>{['▦', '✓', '↻', '฿'][index]}</div><div><p>{stat[0]}</p><strong>{stat[1]}</strong><small>{stat[2]}</small></div></article>)}</section>
-            <section className="overview-grid"><article className="panel overview-workflow"><div className="panel-header"><div><h2>กระบวนการคำขอ</h2><p>ภาพรวมภารกิจตามบทบาทของคุณวันนี้</p></div><span className="live-badge">อัปเดตสด</span></div><div className="workflow-cards"><div><span className="workflow-icon submitted">↗</span><div><strong>{approvalCandidates.length}</strong><small>{'คำขอรอดำเนินการ'}</small></div></div><div><span className="workflow-icon approved">✓</span><div><strong>63</strong><small>อนุมัติแล้วเดือนนี้</small></div></div><div><span className="workflow-icon revised">↺</span><div><strong>13</strong><small>คำขอต้องแก้ไข</small></div></div></div><div className="workflow-route"><div className="workflow-route-head"><strong>สภาวะการอนุมัติ</strong><span>ระบบเดือนตุลาคม 2569</span></div><div className="pipeline-bars"><div><span>ส่งคำขอ</span><i><b style={{ width: '92%' }} /></i><strong>128</strong></div><div><span>ตรวจสอบ</span><i><b style={{ width: '68%' }} /></i><strong>52</strong></div><div><span>อนุมัติ</span><i><b style={{ width: '49%' }} /></i><strong>63</strong></div></div></div></article><article className="panel overview-budget"><div className="panel-header"><div><h2>งบประมาณที่รับผิดชอบ</h2><p>{roleBudget.scope}</p></div><span className="budget-year-badge">ปีงบ {budgetYear}</span></div>{admin ? <div className="admin-overview-note"><strong>โหมดผู้ดูแลระบบ</strong><span>ติดตามผู้ใช้ สิทธิ์ หน่วยงาน และประวัติระบบ ไม่มีสิทธิ์สร้างหรืออนุมัติคำขอ</span></div> : <><div className="budget-ring" style={{ background: `conic-gradient(#245cbe 0 ${roleBudget.total ? Math.min(100, Math.round(roleBudget.used / roleBudget.total * 100)) : 0}%, #edf1f7 0)` }}><div><strong>{roleBudget.total ? Math.round(roleBudget.used / roleBudget.total * 100) : 0}%</strong><span>ใช้งบไปแล้ว</span></div></div><div className="budget-legend"><div><span>งบทั้งหมด</span><strong>{roleBudget.total.toLocaleString('th-TH')} บาท</strong></div><div><span>ใช้งบไปแล้ว</span><strong>{roleBudget.used.toLocaleString('th-TH')} บาท</strong></div><div><span>คงเหลือโดยประมาณ</span><strong>{Math.max(0, roleBudget.total - roleBudget.used - committedAmount).toLocaleString('th-TH')} บาท</strong></div></div></>}</article></section><section className="panel overview-tasks"><div className="panel-header"><div><h2>{admin ? 'งานดูแลระบบวันนี้' : 'สิ่งที่ต้องดำเนินการ'}</h2><p>{admin ? 'รายการตรวจสอบและกำหนดสิทธิ์' : 'ภารกิจประจำบทบาทที่เกี่ยวข้องกับคำขอและงบประมาณ'}</p></div></div><div className="task-list"><div className="task-item"><span className="task-number">01</span><div><strong>{finance ? 'ตรวจคำขอที่ส่งมาที่ฝ่ายการเงิน' : 'ตรวจคำขอในขอบเขตอำนาจ'}</strong><p>{`มี ${approvalCandidates.length} คำขอรอการพิจารณาในระบบ`}</p></div><button type="button" onClick={() => setActive(finance ? 'ตรวจสอบการเงิน' : approvalMenuItem)}>เปิดรายการ</button></div><div className="task-item"><span className="task-number">02</span><div><strong>ตรวจวงเงินงบประมาณปีงบ {budgetYear}</strong><p>{admin ? 'ตรวจสอบผู้ใช้และบทบาทที่มีสิทธิ์ในระบบ' : 'ตรวจงบคงเหลือก่อนสร้างหรืออนุมัติคำขอ'}</p></div><button type="button" onClick={() => setActive(admin ? 'บทบาทและสิทธิ์' : 'รายงานงบประมาณ')}>ดูภาพรวม</button></div><div className="task-item"><span className="task-number">03</span><div><strong>จัดเตรียมเอกสารประกอบคำขอ</strong><p>เอกสารต้องตรงกับประเภทงบ รูปแบบการเบิก และเงื่อนไขการจ่าย</p></div><button type="button" onClick={() => setActive(canCreateRequest ? 'สร้างคำขอใหม่' : 'ประวัติระบบ')}>{canCreateRequest ? 'สร้างคำขอ' : 'ดูประวัติ'}</button></div>            </div></section><section className="panel overview-request-table"><div className="panel-header"><div><h2>{'คำขอที่เกี่ยวข้องล่าสุด'}</h2><p>{'รวมคำขอที่อยู่ในขอบเขตการทำงานของบทบาทคุณ'}</p></div><button type="button" onClick={() => setActive(approvalMenuItem)}>ดูรายละเอียดทั้งหมด</button></div><div className="table-wrap"><table><thead><tr><th>เลขที่คำขอ</th><th>รายการ</th><th>หน่วยงาน</th><th>วงเงิน</th><th>สถานะ</th></tr></thead><tbody>{(visibleRequests).slice(0, 6).map((item) => <tr key={item.code}><td><strong>{item.code}</strong><small>{item.date}</small></td><td><strong>{item.title}</strong><small>{item.requester ?? user.name}</small></td><td>{item.unit}</td><td>{money(item.amount)}</td><td><span className="status">{approvalOverrides[item.code] ?? item.status}</span></td></tr>)}</tbody></table>{visibleRequests.length === 0 && <div className="empty-approval">ยังไม่มีคำขอในขอบเขตนี้</div>}</div></section>
+            {finance
+              ? <FinanceReview mode="summary" approvalCandidates={approvalCandidates} allRequests={allRequests} myRequests={myRequests} />
+              : <section className="stats-grid">{stats.map((stat, index) => <article className="stat-card" key={stat[0]}><div className={`stat-icon color-${index}`}>{['▦', '✓', '↻', '฿'][index]}</div><div><p>{stat[0]}</p><strong>{stat[1]}</strong><small>{stat[2]}</small></div></article>)}</section>}
+            <section className="overview-grid"><article className="panel overview-workflow"><div className="panel-header"><div><h2>กระบวนการคำขอ</h2><p>ภาพรวมภารกิจตามบทบาทของคุณวันนี้</p></div><span className="live-badge">อัปเดตสด</span></div><div className="workflow-cards"><div><span className="workflow-icon submitted">↗</span><div><strong>{approvalCandidates.length}</strong><small>{'คำขอรอดำเนินการ'}</small></div></div><div><span className="workflow-icon approved">✓</span><div><strong>63</strong><small>อนุมัติแล้วเดือนนี้</small></div></div><div><span className="workflow-icon revised">↺</span><div><strong>13</strong><small>คำขอต้องแก้ไข</small></div></div></div><div className="workflow-route"><div className="workflow-route-head"><strong>สภาวะการอนุมัติ</strong><span>ระบบเดือนตุลาคม 2569</span></div><div className="pipeline-bars"><div><span>ส่งคำขอ</span><i><b style={{ width: '92%' }} /></i><strong>128</strong></div><div><span>ตรวจสอบ</span><i><b style={{ width: '68%' }} /></i><strong>52</strong></div><div><span>อนุมัติ</span><i><b style={{ width: '49%' }} /></i><strong>63</strong></div></div></div></article><article className="panel overview-budget"><div className="panel-header"><div><h2>งบประมาณที่รับผิดชอบ</h2><p>{roleBudget.scope}</p></div><span className="budget-year-badge">ปีงบ {budgetYear}</span></div>{admin ? <div className="admin-overview-note"><strong>โหมดผู้ดูแลระบบ</strong><span>ติดตามผู้ใช้ สิทธิ์ หน่วยงาน และประวัติระบบ ไม่มีสิทธิ์สร้างหรืออนุมัติคำขอ</span></div> : <><div className="budget-ring" style={{ background: `conic-gradient(#245cbe 0 ${roleBudget.total ? Math.min(100, Math.round(roleBudget.used / roleBudget.total * 100)) : 0}%, #edf1f7 0)` }}><div><strong>{roleBudget.total ? Math.round(roleBudget.used / roleBudget.total * 100) : 0}%</strong><span>ใช้งบไปแล้ว</span></div></div><div className="budget-legend"><div><span>งบทั้งหมด</span><strong>{roleBudget.total.toLocaleString('th-TH')} บาท</strong></div><div><span>ใช้งบไปแล้ว</span><strong>{roleBudget.used.toLocaleString('th-TH')} บาท</strong></div><div><span>คงเหลือโดยประมาณ</span><strong>{Math.max(0, roleBudget.total - roleBudget.used - committedAmount).toLocaleString('th-TH')} บาท</strong></div></div></>}</article></section><section className="panel overview-tasks"><div className="panel-header"><div><h2>{admin ? 'งานดูแลระบบวันนี้' : 'สิ่งที่ต้องดำเนินการ'}</h2><p>{admin ? 'รายการตรวจสอบและกำหนดสิทธิ์' : 'ภารกิจประจำบทบาทที่เกี่ยวข้องกับคำขอและงบประมาณ'}</p></div></div><div className="task-list"><div className="task-item"><span className="task-number">01</span><div><strong>{finance ? 'ตรวจคำขอที่ส่งมาที่ฝ่ายการเงิน' : 'ตรวจคำขอในขอบเขตอำนาจ'}</strong><p>{`มี ${approvalCandidates.length} คำขอรอการพิจารณาในระบบ`}</p></div><button type="button" onClick={() => setActive(finance ? FINANCE_REVIEW_MENU[0] : approvalMenuItem)}>เปิดรายการ</button></div><div className="task-item"><span className="task-number">02</span><div><strong>ตรวจวงเงินงบประมาณปีงบ {budgetYear}</strong><p>{admin ? 'ตรวจสอบผู้ใช้และบทบาทที่มีสิทธิ์ในระบบ' : 'ตรวจงบคงเหลือก่อนสร้างหรืออนุมัติคำขอ'}</p></div><button type="button" onClick={() => setActive(admin ? 'บทบาทและสิทธิ์' : 'รายงานงบประมาณ')}>ดูภาพรวม</button></div><div className="task-item"><span className="task-number">03</span><div><strong>จัดเตรียมเอกสารประกอบคำขอ</strong><p>เอกสารต้องตรงกับประเภทงบ รูปแบบการเบิก และเงื่อนไขการจ่าย</p></div><button type="button" onClick={() => setActive(canCreateRequest ? 'สร้างคำขอใหม่' : 'ประวัติระบบ')}>{canCreateRequest ? 'สร้างคำขอ' : 'ดูประวัติ'}</button></div>            </div></section><section className="panel overview-request-table"><div className="panel-header"><div><h2>{'คำขอที่เกี่ยวข้องล่าสุด'}</h2><p>{'รวมคำขอที่อยู่ในขอบเขตการทำงานของบทบาทคุณ'}</p></div><button type="button" onClick={() => setActive(approvalMenuItem)}>ดูรายละเอียดทั้งหมด</button></div><div className="table-wrap"><table><thead><tr><th>เลขที่คำขอ</th><th>รายการ</th><th>หน่วยงาน</th><th>วงเงิน</th><th>สถานะ</th></tr></thead><tbody>{(visibleRequests).slice(0, 6).map((item) => <tr key={item.code}><td><strong>{item.code}</strong><small>{item.date}</small></td><td><strong>{item.title}</strong><small>{item.requester ?? user.name}</small></td><td>{item.unit}</td><td>{money(item.amount)}</td><td><StatusBadge status={approvalOverrides[item.code] ?? item.status} /></td></tr>)}</tbody></table>{visibleRequests.length === 0 && <div className="empty-approval">ยังไม่มีคำขอในขอบเขตนี้</div>}</div></section>
           </>
         )}
       </div>
