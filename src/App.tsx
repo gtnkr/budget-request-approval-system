@@ -9,7 +9,7 @@ const accounts = [
     username: 'พนักงาน',
     password: 'พนักงาน',
     label: 'พนักงาน',
-    name: 'นภาพร ทองดี',
+    name: 'พิมพ์ชนก วัฒนากุล',
     unit: 'แผนกเทคโนโลยี',
     canCreateRequest: true,
   },
@@ -18,7 +18,7 @@ const accounts = [
     username: 'หัวหน้าแผนก',
     password: 'หัวหน้าแผนก',
     label: 'หัวหน้าแผนก',
-    name: 'สมชาย ใจดี',
+    name: 'ธนกร ศรีสวัสดิ์',
     unit: 'แผนกเทคโนโลยี',
     canCreateRequest: true,
   },
@@ -27,7 +27,7 @@ const accounts = [
     username: 'ผู้บริหาร',
     password: 'ผู้บริหาร',
     label: 'ผู้บริหาร',
-    name: 'ประเสริฐ รัตนชัย',
+    name: 'กิตติพงษ์ วัฒนชัย',
     unit: 'ผู้บริหารองค์กร',
     canCreateRequest: true,
   },
@@ -36,7 +36,7 @@ const accounts = [
     username: 'ฝ่ายการเงิน',
     password: 'ฝ่ายการเงิน',
     label: 'ฝ่ายการเงิน',
-    name: 'มนัสวิน ดีงาม',
+    name: 'อรทัย พูลสวัสดิ์',
     unit: 'ฝ่ายการเงิน',
     canCreateRequest: true,
   },
@@ -45,8 +45,8 @@ const accounts = [
     username: 'คณะกรรมการตรวจสอบ',
     password: 'คณะกรรมการตรวจสอบ',
     label: 'คณะกรรมการตรวจสอบ',
-    name: 'คณะกรรมการตรวจสอบภายใน',
-    unit: 'คณะกรรมการอิสระ',
+    name: 'ณัฐกานต์ วงศ์ประเสริฐ',
+    unit: 'คณะกรรมการตรวจสอบภายใน',
     canCreateRequest: false,
   },
   {
@@ -54,7 +54,7 @@ const accounts = [
     username: 'แอดมิน',
     password: 'แอดมิน',
     label: 'แอดมิน',
-    name: 'ผู้ดูแลระบบ',
+    name: 'ภาคิน นาคเจริญ',
     unit: 'ฝ่ายระบบสารสนเทศ',
     canCreateRequest: false,
   },
@@ -62,15 +62,6 @@ const accounts = [
 
 type DemoUser = (typeof accounts)[number]
 const sessionKey = 'budget-demo-user'
-
-function BudgetIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
-      <path d="M8 7h8M8 11h4M8 15h2M14 15h2M16 18.5V13M13.5 15.5h5" />
-    </svg>
-  )
-}
 
 function App() {
   const [username, setUsername] = useState('')
@@ -118,7 +109,7 @@ function App() {
     <main className="login-page">
       <section className="login-card" aria-labelledby="login-title">
         <div className="brand-mark">
-          <BudgetIcon />
+          <img src={`${import.meta.env.BASE_URL}budget-mark.svg`} alt="ระบบคำขอและอนุมัติงบประมาณ" />
         </div>
         <div className="login-heading">
           <p className="eyebrow">Budget Management System</p>
@@ -159,6 +150,15 @@ function App() {
             เข้าสู่ระบบ
           </button>
         </form>
+        <details className="login-demo">
+          <summary>บัญชีสำหรับทดลองใช้งาน</summary>
+          <p>ใช้ชื่อบทบาทเป็นทั้งชื่อผู้ใช้และรหัสผ่าน</p>
+          <div className="login-demo-roles">
+            {accounts.map((account) => (
+              <span key={account.id}>{account.label}</span>
+            ))}
+          </div>
+        </details>
       </section>
     </main>
   )
