@@ -1,11 +1,10 @@
 import { DashboardWorkspace } from '../DashboardWorkspace'
-import type { DashboardRole, RoleStatsContext } from './types'
-import type { DemoUser } from './types'
+import type { DashboardRole, DemoUser, RoleRequest, RoleStatsContext, RoleStat, WorkflowStage, HomeScreenProps } from './types'
 import { completedRequestStatuses, terminalRequestStatuses } from './types'
 import { ApprovalQueue } from './ApprovalQueue'
 import { RoleOverview } from './RoleOverview'
-import type { HomeScreenProps, WorkflowStage } from './types'
 
+// 1. ลำดับอนุมัติระดับองค์กร
 const executiveWorkflow: WorkflowStage[] = [
   { label: 'หัวหน้าแผนกตรวจสอบ', status: 'รอหัวหน้าแผนก', detail: 'คำขอหน่วยงานรอการตรวจสอบเบื้องต้น' },
   { label: 'ผู้บริหารพิจารณา', status: 'รอผู้บริหาร', detail: 'คิวอนุมัติคำขอวงเงินเกิน 10,000 บาท' },
@@ -13,6 +12,7 @@ const executiveWorkflow: WorkflowStage[] = [
   { label: 'ฝ่ายการเงินดำเนินการ', status: 'รอฝ่ายการเงิน', detail: 'ตรวจสอบและบันทึกการจ่ายเงิน' },
 ]
 
+// 2. หน้าจอคิวอนุมัติและภาพรวมของผู้บริหาร
 function ExecutiveApprovalScreen(props: Parameters<typeof ApprovalQueue>[0]) {
   return (
     <ApprovalQueue
@@ -36,6 +36,27 @@ function ExecutiveHome(props: HomeScreenProps) {
   )
 }
 
+// 3. กติกาสิทธิ์และสถิติของผู้บริหาร
+function canExecutiveReviewRequest(request: RoleRequest, user: DemoUser) {
+  return (
+    !terminalRequestStatuses.includes(request.status) &&
+    request.requesterId !== user.id &&
+    request.status === 'รอผู้บริหาร'
+  )
+}
+
+function getExecutiveStats({ myRequests, approvalCandidates, money }: RoleStatsContext): RoleStat[] {
+  return [
+    ['คำขอรออนุมัติ', `${approvalCandidates.length} รายการ`, 'คิวผู้บริหาร'],
+    ['วงเงินรออนุมัติ', money(approvalCandidates.reduce((total, item) => total + Number(item.amount || 0), 0)), 'รวมคำขอในคิว'],
+    [
+      'คำขอของฉันเสร็จแล้ว',
+      `${myRequests.filter((item) => completedRequestStatuses.includes(item.status)).length} รายการ`,
+      'ผู้ขอบทบาทผู้บริหาร',
+    ],
+  ]
+}
+
 const executiveDashboard: DashboardRole = {
   ApprovalScreen: ExecutiveApprovalScreen,
   HomeScreen: ExecutiveHome,
@@ -52,19 +73,8 @@ const executiveDashboard: DashboardRole = {
     `ผู้บริหาร (${user.name}) สร้างคำขอได้ทุกวงเงิน คำขอของผู้บริหารจะส่งคณะกรรมการตรวจสอบแทนการอนุมัติด้วยตนเอง`,
   getApprovalScopeDescription: () =>
     'อนุมัติคำขอเกิน 10,000 บาททุกหน่วยงาน คำขอของผู้บริหารเองส่งคณะกรรมการตรวจสอบแทน',
-  canReviewRequest: (request, _activeSection, user) =>
-    !terminalRequestStatuses.includes(request.status) &&
-    request.requesterId !== user.id &&
-    request.status === 'รอผู้บริหาร',
-  getStats: ({ myRequests, approvalCandidates, money }: RoleStatsContext) => [
-    ['คำขอรออนุมัติ', `${approvalCandidates.length} รายการ`, 'คิวผู้บริหาร'],
-    ['วงเงินรออนุมัติ', money(approvalCandidates.reduce((total, item) => total + Number(item.amount || 0), 0)), 'รวมคำขอในคิว'],
-    [
-      'คำขอของฉันเสร็จแล้ว',
-      `${myRequests.filter((item) => completedRequestStatuses.includes(item.status)).length} รายการ`,
-      'ผู้ขอบทบาทผู้บริหาร',
-    ],
-  ],
+  canReviewRequest: (request, _activeSection, user) => canExecutiveReviewRequest(request, user),
+  getStats: getExecutiveStats,
 }
 
 export function ExecutiveDashboard({ user, logout }: { user: DemoUser; logout: () => void }) {
